@@ -1,6 +1,6 @@
 name: alliance
 version: ${project.version}
-main: com.ismaiiil.alliance.Alliance
+main: com.ismaiiil.alliance.AlliancePlugin
 api-version: 1.16
 authors: [ Ismail_Nasurally ]
 description: A plugin to prevent grief and a "factions" like behaviour with a minimalistic design
