@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.Utils.Balance;
+package com.ismaiiil.alliance.Utils.BalanceWrappers;
 
 import com.ismaiiil.alliance.AlliancePlugin;
 

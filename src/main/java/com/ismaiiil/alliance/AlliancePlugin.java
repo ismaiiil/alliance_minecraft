@@ -1,26 +1,24 @@
 package com.ismaiiil.alliance;
 
-import com.ismaiiil.alliance.Utils.Balance.PlayerJsonData;
-import com.ismaiiil.alliance.Utils.Balance.PlayerData;
+import com.ismaiiil.alliance.Utils.BalanceWrappers.PlayerJsonData;
+import com.ismaiiil.alliance.Utils.BalanceWrappers.PlayerData;
 import com.ismaiiil.alliance.Utils.ConfigLoader;
 import com.ismaiiil.alliance.WorldGuardInstances.RegionsInstance;
 import com.ismaiiil.alliance.WorldGuardInstances.WorldHelperFactory;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.*;
+import lombok.var;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -37,10 +35,14 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     int radius;
     int defaultBalance;
 
+    private static AlliancePlugin inst;
+
     public PlayerJsonData playerJsonData;
     public File playerJsonFile;
 
-    private static AlliancePlugin inst;
+
+
+
 
     public AlliancePlugin(){
         inst = this;
@@ -54,15 +56,19 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public void onEnable() {
         // Plugin startup logic
 
+        //config files init
         saveDefaultConfig();
         radius = getConfig().getInt("defaults.radius");
         defaultBalance = getConfig().getInt("defaults.starting-balance");
 
+        //custom json file initilisation
         playerJsonFile = new File(this.getDataFolder().getPath() + File.separator + "player_data.json");
         playerJsonData = ConfigLoader.loadConfig(PlayerJsonData.class, playerJsonFile);
 
+        //registering classes
         getServer().getPluginManager().registerEvents(this, this);
 
+        //getting worldGuard plugin stuff
         defaultWorldFactory = WorldHelperFactory.getWorldFactory("world");
         worldGuardPlugin = WorldGuardPlugin.inst();
         if (defaultWorldFactory != null){
@@ -70,10 +76,14 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
             defaultRegionContainer = defaultWorldFactory.worldRegionContainer;
         }
 
+        //setting default worldGuard stuff
         setGlobalFlags();
 
-//        balance.balances.put("player1", new BalanceElements(242));
-//        ConfigLoader.saveConfig(balance, balancesFile);
+        //creating scoreboard
+        //DECIDE WHAT TO DO ASYNC???
+
+
+
 
     }
 
@@ -86,9 +96,9 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerClicks(PlayerInteractEvent event) {
-        Player player = event.getPlayer();
-        Action action = event.getAction();
-        ItemStack item = event.getItem();
+        var player = event.getPlayer();
+        var action = event.getAction();
+        var item = event.getItem();
 
         PlayerData playerData;
         //check if player has a balance in balance.json else create a new entry for him
@@ -100,17 +110,30 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
         if ( action.equals( Action.RIGHT_CLICK_BLOCK ) ) {
             if ( item != null && item.getType() == Material.STICK ) {
-                Block targetBlock = event.getClickedBlock();
 
-                Location targetLocation = targetBlock.getLocation();
+                var targetBlock = event.getClickedBlock();
 
-                Location corner1Location = new Location(targetBlock.getWorld(), targetLocation.getX() + radius, targetLocation.getWorld().getMaxHeight(), targetLocation.getZ() + radius );
-                Location corner2Location = new Location(targetBlock.getWorld(), targetLocation.getX() - radius,0 , targetLocation.getZ() - radius );
+                //check user balance before creating region
+                int claimCost = ((radius*2) + 1) * ((radius*2) + 1);
 
-                BlockVector3 corner1Vector3 = BukkitAdapter.asBlockVector(corner1Location);
-                BlockVector3 corner2Vector3 = BukkitAdapter.asBlockVector(corner2Location);
+                if(playerData.balance - claimCost < 0){
+                    player.sendMessage("You dnt have enough block balance to claim this area (" + ((radius*2) + 1) + "*"+ ((radius*2) + 1) + "blocks)");
+                    return;
+                }
 
-                ProtectedRegion defaultRegion = new ProtectedCuboidRegion("region_"+player.getName()+ "_" + playerData.regionCount,true, corner1Vector3, corner2Vector3);
+                //target block is never null because of RIGHT_CLICK_BLOCK Action
+                var targetLocation = targetBlock.getLocation();
+
+
+
+
+                var corner1Location = new Location(targetBlock.getWorld(), targetLocation.getX() + radius, targetLocation.getWorld().getMaxHeight(), targetLocation.getZ() + radius );
+                var corner2Location = new Location(targetBlock.getWorld(), targetLocation.getX() - radius,0 , targetLocation.getZ() - radius );
+
+                var corner1Vector3 = BukkitAdapter.asBlockVector(corner1Location);
+                var corner2Vector3 = BukkitAdapter.asBlockVector(corner2Location);
+
+                var defaultRegion = new ProtectedCuboidRegion("region_"+player.getName()+ "_" + playerData.regionCount,true, corner1Vector3, corner2Vector3);
 
                 getServer().getScheduler().runTaskAsynchronously(this, bukkitTask -> {
 
@@ -118,7 +141,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                 //defaultRegion.getIntersectingRegions()
 
                 playerData.regionCount += 1;
-                playerData.balance -= ((radius*2) + 1) * ((radius*2) + 1);
+                playerData.balance -= claimCost;
 
                 ConfigLoader.saveConfig(playerJsonData,playerJsonFile);
 
