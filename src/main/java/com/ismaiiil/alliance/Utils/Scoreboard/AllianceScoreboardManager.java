@@ -7,14 +7,18 @@ import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
+import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
 
 import java.util.HashMap;
 import java.util.logging.Level;
 
-import static com.ismaiiil.alliance.Utils.Scoreboard.MyObjectives.BALANCE;
-import static com.ismaiiil.alliance.Utils.Scoreboard.MyObjectives.WARS;
+import static com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective.BALANCE;
+import static com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective.WARS;
+
+//import static com.ismaiiil.alliance.Utils.Scoreboard.MyObjectives.BALANCE;
+//import static com.ismaiiil.alliance.Utils.Scoreboard.MyObjectives.WARS;
 
 public class AllianceScoreboardManager {
     private final ScoreboardManager bukkitManager;
@@ -23,7 +27,7 @@ public class AllianceScoreboardManager {
 
     private HashMap<String, Scoreboard> playerScoreboards = new HashMap<>();
 
-    public AllianceScoreboardManager(){
+    public AllianceScoreboardManager() {
         bukkitManager = Bukkit.getScoreboardManager();
 
     }
@@ -40,29 +44,27 @@ public class AllianceScoreboardManager {
 
     public Scoreboard addPlayerScoreboard(String playerName){
         var defaultScoreboard = bukkitManager.getNewScoreboard();
-        addDummyObjective(defaultScoreboard, BALANCE.value);
-        addDummyObjective(defaultScoreboard, WARS.value);
+//        addDummyObjective(defaultScoreboard, BALANCE.value);
+//        addDummyObjective(defaultScoreboard, WARS.value);
+        addDummyObjective(defaultScoreboard, BALANCE);
+        addDummyObjective(defaultScoreboard, WARS);
         playerScoreboards.put(playerName,defaultScoreboard);
         return defaultScoreboard;
     }
 
-    public void getObjectiveScore(String playerName,String myObjective){
-        var _al = new AllianceObjective(getPlayerScoreboard(playerName).getObjective(myObjective));
+
+    public Objective addDummyObjective(Scoreboard thePlayerScoreboard, EnumObjective myObjective){
+        return thePlayerScoreboard.registerNewObjective(myObjective.getTitle(), DUMMY, createObjectiveTextComponent(myObjective));
     }
 
-
-    public void addDummyObjective(Scoreboard thePlayerScoreboard, String myObjective){
-        thePlayerScoreboard.registerNewObjective(myObjective, DUMMY, createObjectiveTextComponent(myObjective));
-    }
-
-    public TextComponent createObjectiveTextComponent(String myObjective){
+    public TextComponent createObjectiveTextComponent(EnumObjective myObjective){
         switch (myObjective){
-            case BALANCE.value:
-                return Component.text(myObjective)
+            case BALANCE:
+                return Component.text(myObjective.getTitle())
                         .color(NamedTextColor.AQUA)
                         .decoration(TextDecoration.BOLD,true);
-            case WARS.value:
-                return Component.text(myObjective)
+            case WARS:
+                return Component.text(myObjective.getTitle())
                         .color(NamedTextColor.LIGHT_PURPLE)
                         .decoration(TextDecoration.ITALIC,true);
             default:
