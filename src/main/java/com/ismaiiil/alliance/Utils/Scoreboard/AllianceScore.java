@@ -1,5 +1,6 @@
 package com.ismaiiil.alliance.Utils.Scoreboard;
 
+import lombok.NonNull;
 import lombok.var;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Score;
@@ -13,20 +14,22 @@ public class AllianceScore {
     private String value;
 
 
-    private final String DELIMITER = ":";
+    private final String DELIMITER;
     private final EnumScore myScoreData;
 
+
     public AllianceScore(Objective objective, EnumScore myScoreData, int row){
+        this.DELIMITER = myScoreData.getDelimiter();
         this.myScoreData = myScoreData;
         this.row = row;
         if (myScoreData.isOneLiner()){
             objective.getScore(myScoreData.getScoreText() + DELIMITER + " " + myScoreData.getDefaultScoreValue())
                 .setScore(row);
         }else{
-            objective.getScore(myScoreData.getScoreText())
+            objective.getScore(myScoreData.getScoreText()+ DELIMITER)
                     .setScore(row);
             objective.getScore(myScoreData.getScoreValueColor() + myScoreData.getDefaultScoreValue())
-                    .setScore(row+1);
+                    .setScore(row-1);
         }
 
     }
@@ -76,7 +79,7 @@ public class AllianceScore {
             Objects.requireNonNull(objective.getScoreboard()).resetScores(scoreEntry);
 
             scoreValue = objective.getScore(myScoreData.getScoreValueColor() + value);
-            scoreValue.setScore(row+1);
+            scoreValue.setScore(row-1);
             this.value = value;
 
         }

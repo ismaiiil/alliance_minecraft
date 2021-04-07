@@ -7,6 +7,7 @@ import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
@@ -15,10 +16,8 @@ import java.util.HashMap;
 import java.util.logging.Level;
 
 import static com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective.BALANCE;
-import static com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective.WARS;
+import static com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective.WAR;
 
-//import static com.ismaiiil.alliance.Utils.Scoreboard.MyObjectives.BALANCE;
-//import static com.ismaiiil.alliance.Utils.Scoreboard.MyObjectives.WARS;
 
 public class AllianceScoreboardManager {
     private final ScoreboardManager bukkitManager;
@@ -26,44 +25,71 @@ public class AllianceScoreboardManager {
     private final static String DUMMY = "dummy";
 
     private HashMap<String, Scoreboard> playerScoreboards = new HashMap<>();
+    private HashMap<String, AllianceObjective> playerObjectives = new HashMap<>();
 
     public AllianceScoreboardManager() {
         bukkitManager = Bukkit.getScoreboardManager();
 
     }
 
-    public Scoreboard getPlayerScoreboard(String playerName){
-        var _obj = playerScoreboards.get(playerName);
+    public Scoreboard getPlayerScoreboard(Player player){
+        var _obj = playerScoreboards.get(player.getName());
         if (_obj != null) {
             return _obj;
         }else{
-            AlliancePlugin.inst().getLogger().log(Level.SEVERE, "The scoreboard for player " + playerName + " does not exist");
+            AlliancePlugin.inst().getLogger().log(Level.SEVERE, "The scoreboard for player " + player + " does not exist");
         }
         return null;
     }
 
-    public Scoreboard addPlayerScoreboard(String playerName){
+    public void addPlayerScoreboard(Player player){
         var defaultScoreboard = bukkitManager.getNewScoreboard();
-//        addDummyObjective(defaultScoreboard, BALANCE.value);
-//        addDummyObjective(defaultScoreboard, WARS.value);
-        addDummyObjective(defaultScoreboard, BALANCE);
-        addDummyObjective(defaultScoreboard, WARS);
-        playerScoreboards.put(playerName,defaultScoreboard);
-        return defaultScoreboard;
+
+        HashMap<EnumObjective ,Objective> objectives = new HashMap<>();
+//        objectives.put(BALANCE,addDummyObjective(defaultScoreboard, BALANCE));
+//        objectives.put(WAR,addDummyObjective(defaultScoreboard, WAR));
+
+        for (EnumObjective _eo: EnumObjective.values()) {
+            if (!_eo.isIgnored()){
+                objectives.put(_eo,addDummyObjective(defaultScoreboard, _eo));
+            }
+        }
+
+        playerObjectives.put(player.getName(),new AllianceObjective(objectives));
+
+        playerScoreboards.put(player.getName(),defaultScoreboard);
+        player.setScoreboard(defaultScoreboard);
+
+    }
+
+    public void changePlayerScore(Player player,EnumScore enumScore,String value){
+        var _ao = playerObjectives.get(player.getName());
+        _ao.changeScoreValue(enumScore,value);
+    }
+
+    public void setPlayerSidebar(Player player,EnumObjective enumObjective){
+        var _ao = playerObjectives.get(player.getName());
+        _ao.changeSideBarObjective(enumObjective);
+    }
+
+    //TODO REMOVE THIS LATER
+    public void DEBUG_DELETE(Player player){
+        player.setScoreboard(bukkitManager.getNewScoreboard());
+
     }
 
 
-    public Objective addDummyObjective(Scoreboard thePlayerScoreboard, EnumObjective myObjective){
+    private Objective addDummyObjective(Scoreboard thePlayerScoreboard, EnumObjective myObjective){
         return thePlayerScoreboard.registerNewObjective(myObjective.getTitle(), DUMMY, createObjectiveTextComponent(myObjective));
     }
 
-    public TextComponent createObjectiveTextComponent(EnumObjective myObjective){
+    private TextComponent createObjectiveTextComponent(EnumObjective myObjective){
         switch (myObjective){
             case BALANCE:
                 return Component.text(myObjective.getTitle())
                         .color(NamedTextColor.AQUA)
                         .decoration(TextDecoration.BOLD,true);
-            case WARS:
+            case WAR:
                 return Component.text(myObjective.getTitle())
                         .color(NamedTextColor.LIGHT_PURPLE)
                         .decoration(TextDecoration.ITALIC,true);

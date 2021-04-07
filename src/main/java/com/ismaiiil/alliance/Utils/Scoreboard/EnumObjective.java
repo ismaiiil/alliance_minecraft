@@ -1,10 +1,20 @@
 package com.ismaiiil.alliance.Utils.Scoreboard;
 
-public enum EnumObjective {
-    BALANCE("Balance"),WARS("Wars");
-    private final String title;
+import lombok.Getter;
 
-    EnumObjective(final String title) {
+public enum EnumObjective {
+    BALANCE("Balance",false), WAR("War",false) , CONSTANTS("CONSTANTS",true);
+    @Getter
+    private final String title;
+    @Getter
+    private final boolean isIgnored;
+
+    EnumObjective(final String title,final boolean isIgnored) {
         this.title = title;
+        this.isIgnored = isIgnored;
     }
+
+
+
+
 }

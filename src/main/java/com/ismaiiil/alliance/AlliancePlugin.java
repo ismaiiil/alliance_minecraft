@@ -3,6 +3,8 @@ package com.ismaiiil.alliance;
 import com.ismaiiil.alliance.Utils.BalanceWrappers.PlayerJsonData;
 import com.ismaiiil.alliance.Utils.BalanceWrappers.PlayerData;
 import com.ismaiiil.alliance.Utils.ConfigLoader;
+import com.ismaiiil.alliance.Utils.Scoreboard.AllianceScoreboardManager;
+import com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective;
 import com.ismaiiil.alliance.WorldGuardInstances.RegionsInstance;
 import com.ismaiiil.alliance.WorldGuardInstances.WorldHelperFactory;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -19,6 +21,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -40,8 +43,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public PlayerJsonData playerJsonData;
     public File playerJsonFile;
 
-
-
+    AllianceScoreboardManager allianceScoreboardManager;
 
 
     public AlliancePlugin(){
@@ -83,13 +85,24 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         //DECIDE WHAT TO DO ASYNC???
 
 
-
+        allianceScoreboardManager = new AllianceScoreboardManager();
 
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player p = event.getPlayer();
+        allianceScoreboardManager.addPlayerScoreboard(p);
+        allianceScoreboardManager.setPlayerSidebar(p, EnumObjective.BALANCE);
+        //allianceScoreboardManager.setPlayerSidebar(p, EnumObjective.WAR);
+
+        //TODO fix reversing scores (make it cleaner, exact number of lines)
+        //TODO fix color
+        //TODO handle max lines a scoreboard can handle
+        //TODO Update server paper version
+        //TODO only update current objective displayed in slot
+        //TODO manage what needs to be done in async (updating scoreboard etc...)
+
         //get all players in config file
 
     }
@@ -133,6 +146,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                 var corner1Vector3 = BukkitAdapter.asBlockVector(corner1Location);
                 var corner2Vector3 = BukkitAdapter.asBlockVector(corner2Location);
 
+                //TODO remove transient
                 var defaultRegion = new ProtectedCuboidRegion("region_"+player.getName()+ "_" + playerData.regionCount,true, corner1Vector3, corner2Vector3);
 
                 getServer().getScheduler().runTaskAsynchronously(this, bukkitTask -> {
@@ -178,8 +192,14 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         }
     }
 
+    @EventHandler
+    public void onPlayerClicks(PlayerQuitEvent event) {
+        allianceScoreboardManager.DEBUG_DELETE(event.getPlayer());
+    }
+
     @Override
     public void onDisable() {
+
         // Plugin shutdown logic
     }
 
