@@ -23,7 +23,7 @@ public class AllianceScore {
         this.myScoreData = myScoreData;
         this.row = row;
         if (myScoreData.isOneLiner()){
-            objective.getScore(myScoreData.getScoreText() + DELIMITER + " " + myScoreData.getDefaultScoreValue())
+            objective.getScore(myScoreData.getScoreText() + DELIMITER + myScoreData.getScoreValueColor() + myScoreData.getDefaultScoreValue())
                 .setScore(row);
         }else{
             objective.getScore(myScoreData.getScoreText()+ DELIMITER)
@@ -70,7 +70,7 @@ public class AllianceScore {
             scoreEntry = scoreText.getEntry();
             Objects.requireNonNull(objective.getScoreboard()).resetScores(scoreEntry);
 
-            scoreText = objective.getScore(myScoreData.getScoreText() + DELIMITER + " " + value);
+            scoreText = objective.getScore(myScoreData.getScoreText() + DELIMITER + myScoreData.getScoreValueColor() + value);
             scoreText.setScore(row);
             this.value = value;
 

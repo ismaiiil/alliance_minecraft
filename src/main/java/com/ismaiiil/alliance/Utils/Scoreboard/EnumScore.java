@@ -6,78 +6,104 @@ import org.bukkit.ChatColor;
 import java.util.EnumSet;
 import java.util.Set;
 
+import static com.ismaiiil.alliance.Utils.Scoreboard.Constants.*;
+
+class Constants  {
+    public static String SPACER = "------";
+    public static String OUTLINE = "          ";
+    public static String DEFAULT_DELIMITER = ": ";
+    public static String ZERO = "Zero";
+    public static String NONE = "None";
+}
+
 @Getter
 public enum EnumScore { //Note: order of enum affects the order of the scoreboard
+
     //------------------------------------------------------------------------------------------------------------------
     //Constant objective scores (USED FOR SPACING)
     //------------------------------------------------------------------------------------------------------------------
     _SPACER_       ( EnumObjective.CONSTANTS,
-                    "-------",
-                    ChatColor.YELLOW,
-                    ":",
-                    "-------",
+                     SPACER,
+                    ChatColor.YELLOW.toString() ,
+                    DEFAULT_DELIMITER,
+                    SPACER,
                     null,
                     true),
+
+    _OUTLINE_       (   EnumObjective.CONSTANTS,
+                        OUTLINE,
+                        ChatColor.GREEN.toString() + ChatColor.STRIKETHROUGH.toString(),
+                        DEFAULT_DELIMITER,
+                        OUTLINE,
+                        null,
+                        true),
 
     //------------------------------------------------------------------------------------------------------------------
     //balance objective scores
     //------------------------------------------------------------------------------------------------------------------
-    BALANCE_AMOUNT( EnumObjective.BALANCE,
+
+    OUTLINE1       (_OUTLINE_, "j", EnumObjective.BALANCE),
+
+    BALANCE_CURRENT( EnumObjective.BALANCE,
                     "Balance left",
-                    ChatColor.GREEN,
-                    ":",
-                    "Zero",
-                    ChatColor.AQUA,
+                    "",
+                    DEFAULT_DELIMITER,
+                    ZERO,
+                    ChatColor.GREEN.toString(),
                     false),
 
 
-    SPACER1     (_SPACER_, " 1"),
+    SPACER1     (_SPACER_, "z", EnumObjective.BALANCE),
 
 
-    USED_BALANCE(   EnumObjective.BALANCE,
+    BALANCE_USED(   EnumObjective.BALANCE,
                     "Balance used",
-                    ChatColor.YELLOW,
-                    ":",
-                    "Zero",
-                    ChatColor.GREEN,
+                    "",
+                    DEFAULT_DELIMITER,
+                    ZERO,
+                    ChatColor.RED.toString(),
                     false),
 
-    SPACER2     (_SPACER_, " 2"),
+    SPACER2     (_SPACER_, "2", EnumObjective.BALANCE),
 
-    NUM_CLAIMS(     EnumObjective.BALANCE,
+    BALANCE_CLAIMS(     EnumObjective.BALANCE,
                     "Claims made",
-                    ChatColor.RED,
-                    ":",
+                    ChatColor.BLUE.toString(),
+                    DEFAULT_DELIMITER,
                     "None",
-                   null,
+                    ChatColor.LIGHT_PURPLE.toString(),
                     true),
+
+    OUTLINE2       (_OUTLINE_, "2", EnumObjective.BALANCE),
 
     //------------------------------------------------------------------------------------------------------------------
     //War objective scores
     //------------------------------------------------------------------------------------------------------------------
 
-    CURRENT_WAR(    EnumObjective.WAR,
+    WAR_CURRENT(    EnumObjective.WAR,
                     "Ongoing war",
-                    ChatColor.YELLOW,
-                    ":",
+                    ChatColor.GREEN.toString(),
+                    DEFAULT_DELIMITER,
                     "None",
-                    ChatColor.BLUE,
+                    ChatColor.AQUA.toString(),
                     false);
 
     private final EnumObjective enumObjective;
     private final String scoreText;
-    private final ChatColor scoreTextColor;
+    private final String scoreTextColor;
     private final String defaultScoreValue;
-    private final ChatColor scoreValueColor;
+    private final String scoreValueColor;
     private final boolean isOneLiner;
     private final String delimiter;
 
 
+    public static Set<EnumScore> balObjScore ; // UPDATE THIS WHEN ADDING SCORES
+    public static Set<EnumScore> warObjScores; // UPDATE "
 
-    public static Set<EnumScore> balObjScore  = EnumSet.range(BALANCE_AMOUNT, NUM_CLAIMS); // UPDATE THIS WHEN ADDING SCORES
-    public static Set<EnumScore> warObjScores = EnumSet.range(CURRENT_WAR, CURRENT_WAR); // UPDATE "
+    public static int balanceRowCount ; // UPDATE THIS WHEN ADDING SCORES
+    public static int warRowCount; // UPDATE "
 
-    EnumScore(EnumObjective enumObjective, String scoreText, ChatColor scoreTextColor,String delimiter, String defaultScoreValue, ChatColor scoreValueColor, boolean isOneLiner) {
+    EnumScore(EnumObjective enumObjective, String scoreText, String scoreTextColor,String delimiter, String defaultScoreValue, String scoreValueColor, boolean isOneLiner) {
         this.enumObjective = enumObjective;
         this.scoreText = scoreText;
         this.scoreTextColor = scoreTextColor;
@@ -85,18 +111,35 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
         this.scoreValueColor = scoreValueColor;
         this.isOneLiner = isOneLiner;
         this.delimiter = delimiter;
+        //setRowCount();
     }
 
-    EnumScore(EnumScore enumscore, String delimiter){
-        //var previous = values()[ordinal() > 0 ? ordinal()  - 1 : 0];
-        this.enumObjective = EnumObjective.BALANCE;
-        scoreText = enumscore.scoreText;
-        scoreTextColor = enumscore.scoreTextColor;
-        this.delimiter = delimiter;
-        defaultScoreValue = enumscore.defaultScoreValue;
-        scoreValueColor = enumscore.scoreValueColor;
-        isOneLiner = enumscore.isOneLiner;
+    //Used for constant duplication
+    EnumScore(EnumScore enumscore ,String delimiter, EnumObjective enumObjective){
+        this.enumObjective = enumObjective;
+        this.scoreText = enumscore.scoreText;
+        this.scoreTextColor = enumscore.scoreTextColor;
+        this.delimiter = ""; //All we need is a clear line with no delimiters
+        this.defaultScoreValue = enumscore.defaultScoreValue +  "§" + delimiter; //this hidden text will help make the difference bet. unique values in scoreboard
+        this.scoreValueColor = enumscore.scoreTextColor;
+        this.isOneLiner = enumscore.isOneLiner;
+        //setRowCount();
     }
+
+    private void setRowCount(){
+        switch (this.getEnumObjective()){
+            case BALANCE:
+                balObjScore.add(this);
+                balanceRowCount = this.isOneLiner ? balanceRowCount++ : balanceRowCount + 2;
+            case WAR:
+                warObjScores.add(this);
+                warRowCount = this.isOneLiner ? warRowCount++ : warRowCount + 2;
+            case CONSTANTS:
+            default:
+        }
+
+    }
+
 
     public String getScoreText() {
         return scoreTextColor + scoreText;
