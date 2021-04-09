@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.Utils;
+package com.ismaiiil.alliance.Utils.ConfigLoading.JSON;
 
 
 import com.google.gson.Gson;

@@ -22,44 +22,46 @@ public class AllianceScore {
         this.DELIMITER = myScoreData.getDelimiter();
         this.myScoreData = myScoreData;
         this.row = row;
+
         if (myScoreData.isOneLiner()){
-            objective.getScore(myScoreData.getScoreText() + DELIMITER + myScoreData.getScoreValueColor() + myScoreData.getDefaultScoreValue())
-                .setScore(row);
+            scoreText = objective.getScore(myScoreData.getScoreText() + DELIMITER + myScoreData.getScoreValueColor() + myScoreData.getDefaultScoreValue());
+            scoreText.setScore(row);
         }else{
-            objective.getScore(myScoreData.getScoreText()+ DELIMITER)
-                    .setScore(row);
-            objective.getScore(myScoreData.getScoreValueColor() + myScoreData.getDefaultScoreValue())
-                    .setScore(row-1);
+            scoreText = objective.getScore(myScoreData.getScoreText()+ DELIMITER);
+            scoreText.setScore(row);
+
+            scoreValue = objective.getScore(myScoreData.getScoreValueColor() + myScoreData.getDefaultScoreValue());
+            scoreValue.setScore(row-1);
         }
 
     }
-
-    @SuppressWarnings("unchecked")
-    public <T> T getScoreValue(Class<T> type){
-        String returnString = value;
-        final String intClass = "Integer";
-        final String doubleClass = "Double";
-        final String StringClass = "String";
-        try {
-            switch (type.getName()) {
-                case StringClass:
-                    return (T) returnString;
-                case intClass:
-                    returnString = returnString.replaceAll("\\s+","");
-                    Integer returnInt = Integer.parseInt(returnString);
-                    return  (T) returnInt ;
-                case doubleClass:
-                    returnString = returnString.replaceAll("\\s+","");
-                    Double returnDoble = Double.parseDouble(returnString);
-                    return  (T) returnDoble ;
-                default:
-                    throw new ClassNotFoundException();
-            }
-        }catch ( ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
+//
+//    @SuppressWarnings("unchecked")
+//    public <T> T getScoreValue(Class<T> type){
+//        String returnString = value;
+//        final String intClass = "Integer";
+//        final String doubleClass = "Double";
+//        final String StringClass = "String";
+//        try {
+//            switch (type.getName()) {
+//                case StringClass:
+//                    return (T) returnString;
+//                case intClass:
+//                    returnString = returnString.replaceAll("\\s+","");
+//                    Integer returnInt = Integer.parseInt(returnString);
+//                    return  (T) returnInt ;
+//                case doubleClass:
+//                    returnString = returnString.replaceAll("\\s+","");
+//                    Double returnDouble = Double.parseDouble(returnString);
+//                    return  (T) returnDouble ;
+//                default:
+//                    throw new ClassNotFoundException();
+//            }
+//        }catch ( ClassNotFoundException e) {
+//            e.printStackTrace();
+//        }
+//        return null;
+//    }
 
     public void changeScoreValue(String value){
         String scoreEntry;

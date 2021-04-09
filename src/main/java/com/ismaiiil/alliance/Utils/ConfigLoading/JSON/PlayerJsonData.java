@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.Utils.BalanceWrappers;
+package com.ismaiiil.alliance.Utils.ConfigLoading.JSON;
 
 import com.ismaiiil.alliance.AlliancePlugin;
 
@@ -12,16 +12,16 @@ public class PlayerJsonData implements Serializable {
 
     public PlayerJsonData(){}
 
-    public PlayerData createPlayerBalance(String playerName, int defaultBalance){
+    public PlayerData createPlayerData(String playerName, int defaultBalance){
         PlayerData _be = new PlayerData();
         _be.balance = defaultBalance;
-        _be.regionCount = 0;
+        _be.regionsCreated = 0;
         if (!players.containsKey(playerName)){
             players.put(playerName,_be);
             return _be;
         }
         else{
-            AlliancePlugin.inst().getLogger().log(Level.SEVERE, "You are trying to create a balance for a player that already have a balance");
+            AlliancePlugin.getInstance().getLogger().log(Level.SEVERE, "You are trying to create a balance for a player that already have a balance");
         }
         return null;
     }
@@ -31,7 +31,7 @@ public class PlayerJsonData implements Serializable {
         if (_be != null) {
             return _be;
         }else{
-            AlliancePlugin.inst().getLogger().log(Level.SEVERE, "The player " + playerName + " isn't in the balance.json file");
+            AlliancePlugin.getInstance().getLogger().log(Level.SEVERE, "The player " + playerName + " isn't in the balance.json file");
         }
         return null;
     }

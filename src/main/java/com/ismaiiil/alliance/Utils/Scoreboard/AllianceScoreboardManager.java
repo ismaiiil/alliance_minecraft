@@ -15,21 +15,34 @@ import org.bukkit.scoreboard.ScoreboardManager;
 import java.util.HashMap;
 import java.util.logging.Level;
 
-import static com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective.BALANCE;
-import static com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective.WAR;
-
 
 public class AllianceScoreboardManager {
+
+    private static AllianceScoreboardManager inst;
     private final ScoreboardManager bukkitManager;
 
     private final static String DUMMY = "dummy";
 
+    //player name - Scoreboard
     private HashMap<String, Scoreboard> playerScoreboards = new HashMap<>();
+    //player name - AllianceObjective
     private HashMap<String, AllianceObjective> playerObjectives = new HashMap<>();
 
-    public AllianceScoreboardManager() {
+
+    private AllianceScoreboardManager() {
         bukkitManager = Bukkit.getScoreboardManager();
 
+    }
+
+    public static AllianceScoreboardManager getInstance() {
+        if (inst == null){
+            inst = new AllianceScoreboardManager();
+        }
+        return inst;
+    }
+
+    public AllianceObjective getAOBjectiveByName(String playerName){
+        return playerObjectives.get(playerName);
     }
 
     public Scoreboard getPlayerScoreboard(Player player){
@@ -37,34 +50,67 @@ public class AllianceScoreboardManager {
         if (_obj != null) {
             return _obj;
         }else{
-            AlliancePlugin.inst().getLogger().log(Level.SEVERE, "The scoreboard for player " + player + " does not exist");
+            AlliancePlugin.getInstance().getLogger().log(Level.WARNING, "The scoreboard for player " + player + " does not exist");
         }
         return null;
     }
 
-    public void addPlayerScoreboard(Player player){
-        var defaultScoreboard = bukkitManager.getNewScoreboard();
+    public void setPlayerScoreboard(Player player){
+        var playerScore = getPlayerScoreboard(player);
 
-        HashMap<EnumObjective ,Objective> objectives = new HashMap<>();
-//        objectives.put(BALANCE,addDummyObjective(defaultScoreboard, BALANCE));
-//        objectives.put(WAR,addDummyObjective(defaultScoreboard, WAR));
+        if (playerScore == null){
+            playerScore = bukkitManager.getNewScoreboard();
 
-        for (EnumObjective _eo: EnumObjective.values()) {
-            if (!_eo.isIgnored()){
-                objectives.put(_eo,addDummyObjective(defaultScoreboard, _eo));
+            HashMap<EnumObjective ,Objective> objectives = new HashMap<>();
+
+            for (EnumObjective _eo: EnumObjective.myValues()) {
+                objectives.put(_eo,addDummyObjective(playerScore, _eo));
             }
+
+            playerObjectives.put(player.getName(),new AllianceObjective(objectives));
+
+            playerScoreboards.put(player.getName(),playerScore);
         }
 
-        playerObjectives.put(player.getName(),new AllianceObjective(objectives));
 
-        playerScoreboards.put(player.getName(),defaultScoreboard);
-        player.setScoreboard(defaultScoreboard);
+        player.setScoreboard(playerScore);
 
     }
 
-    public void changePlayerScore(Player player,EnumScore enumScore,String value){
+    public AllianceObjective getPlayerObjectives(Player player){
+        return playerObjectives.get(player.getName()) ;
+    }
+
+    public void updateAllPlayerScores(Player player, EnumObjective enumObjective){
         var _ao = playerObjectives.get(player.getName());
-        _ao.changeScoreValue(enumScore,value);
+        EnumScore previous = null;
+        if(_ao.getActiveObjective() == enumObjective){
+
+            for (EnumScore enumScore:EnumScore.values()) {
+                if (enumScore.getEnumObjective() == enumObjective){
+                    enumScore.updateLinkedValue(player);
+                }
+
+                if (previous != null
+                        && previous.getEnumObjective() == enumObjective
+                        && previous.getEnumObjective() != enumScore.getEnumObjective())
+                {
+                    break;
+                }
+
+                previous = enumScore;
+
+            }
+        }
+
+    }
+
+    public void updatePlayerScore(Player player, EnumScore enumScore){
+        var _ao = playerObjectives.get(player.getName());
+        if(_ao.getActiveObjective() == enumScore.getEnumObjective()){
+            enumScore.updateLinkedValue(player);
+        }
+
     }
 
     public void setPlayerSidebar(Player player,EnumObjective enumObjective){
@@ -72,10 +118,17 @@ public class AllianceScoreboardManager {
         _ao.changeSideBarObjective(enumObjective);
     }
 
-    //TODO REMOVE THIS LATER
-    public void DEBUG_DELETE(Player player){
-        player.setScoreboard(bukkitManager.getNewScoreboard());
 
+
+    public void resetPlayerScoreboard(Player player){
+        player.setScoreboard(bukkitManager.getNewScoreboard());
+    }
+
+    //TODO REMOVE THIS LATER
+    public void deletePlayerScoreboard(Player player){
+        resetPlayerScoreboard(player);
+        playerScoreboards.remove(player.getName());
+        playerObjectives.remove(player.getName());
     }
 
 
@@ -94,7 +147,7 @@ public class AllianceScoreboardManager {
                         .color(NamedTextColor.LIGHT_PURPLE)
                         .decoration(TextDecoration.ITALIC,true);
             default:
-                AlliancePlugin.inst().getLogger().log(Level.SEVERE, "The objective " + myObjective + " does not exist");
+                AlliancePlugin.getInstance().getLogger().log(Level.SEVERE, "The objective " + myObjective + " does not exist");
                 return null;
         }
     }

@@ -1,3 +1,8 @@
 defaults:
   radius: 5
   starting-balance: 242
+objectives-data:
+  balance:
+    item: STICK
+  war:
+    item: WOODEN_AXE
