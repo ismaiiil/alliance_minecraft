@@ -3,13 +3,10 @@ package com.ismaiiil.alliance.Utils.Scoreboard;
 import lombok.var;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Score;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.*;
 
-import static com.ismaiiil.alliance.Utils.Scoreboard.Constants.*;
+import static com.ismaiiil.alliance.Utils.Scoreboard.EnumScoreConstants.*;
 
 
 public class  AllianceObjective {
@@ -24,18 +21,16 @@ public class  AllianceObjective {
 
 
         this.objectives = objectives;
-        for (EnumObjective enumObjective:objectives.keySet()) {
-            int row = lineCountScores.get(enumObjective);
-            for (EnumScore enumScore:EnumScore.values()) {
-                if (enumScore.getEnumObjective() == enumObjective){
-                    var objective = objectives.get(enumObjective);
-                    scores.put( enumScore ,(new AllianceScore(objective,enumScore, row )));
-                    if (enumScore.isOneLiner()){
-                        row -= 1;
-                    }else {
-                        row -= 2;
-                    }
-
+        for (Map.Entry<EnumObjective,Objective> set:objectives.entrySet()) {
+            var enumObjective = set.getKey();
+            var objective = set.getValue();
+            int row = allScoresCount.get(enumObjective);
+            for (EnumScore enumScore:allScores.get(enumObjective)) {
+                scores.put( enumScore ,(new AllianceScore(objective,enumScore, row )));
+                if (enumScore.isOneLiner()){
+                    row -= 1;
+                }else {
+                    row -= 2;
                 }
             }
         }

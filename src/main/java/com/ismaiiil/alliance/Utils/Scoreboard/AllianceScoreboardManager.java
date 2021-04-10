@@ -86,20 +86,9 @@ public class AllianceScoreboardManager {
         EnumScore previous = null;
         if(_ao.getActiveObjective() == enumObjective){
 
-            for (EnumScore enumScore:EnumScore.values()) {
-                if (enumScore.getEnumObjective() == enumObjective){
-                    enumScore.updateLinkedValue(player);
-                }
-
-                if (previous != null
-                        && previous.getEnumObjective() == enumObjective
-                        && previous.getEnumObjective() != enumScore.getEnumObjective())
-                {
-                    break;
-                }
-
-                previous = enumScore;
-
+            var scores = EnumScoreConstants.allScores.get(enumObjective);
+            for (EnumScore enumScore : scores){
+                enumScore.updateLinkedValue(player);
             }
         }
 

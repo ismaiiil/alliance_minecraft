@@ -9,6 +9,8 @@ import com.ismaiiil.alliance.Utils.Scoreboard.EnumScore;
 import com.ismaiiil.alliance.WorldGuardInstances.RegionsInstance;
 import com.ismaiiil.alliance.WorldGuardInstances.WorldHelperFactory;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.math.BlockVector2;
+import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.managers.RegionManager;
@@ -104,8 +106,8 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         //creating scoreboard
         allianceScoreboardManager = AllianceScoreboardManager.getInstance();
 
+        //periodically create region (do not register it) and chek regions that are his and highlight them
 
-        //TODO anti flicker IMPORTANT
         //TODO set up area highlighting when equipping stick(own claims only)
         //TODO change highlighting when clicking on edge or corner
         //TODO set up area expansion (size cannot be lower than default radius *2 plus one
@@ -119,6 +121,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         //TODO refactor area claiming
         //TODO negative expansion of and edge can go in opposite direction of square( 2, 1, 0, -1, -2), this reflects the image of the area in a mirror
         //TODO make videos to help users claim areas and expanding them
+        //TODO find solution if a player places 4 land claims around one users land claim
 
         //TODO optimise event loops
 
@@ -150,10 +153,41 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
 
         if (newItem.getType() == EnumObjective.BALANCE.getScoreboardItem()){
-            getAndSetPlayerScoreboard(p,EnumObjective.BALANCE);
+            allianceScoreboardManager.setPlayerScoreboard(p);
+            updatePlayerScoreboard(p,EnumObjective.BALANCE);
+
+            //highlight edges of regions within a certain area
+            int h_radius = 4;
+            var targetLocation = p.getLocation();
+
+            var corner1Location = new Location(p.getWorld(), targetLocation.getX() + h_radius, targetLocation.getY() + h_radius, targetLocation.getZ() + h_radius );
+            var corner2Location = new Location(p.getWorld(), targetLocation.getX() - h_radius,targetLocation.getY() - h_radius , targetLocation.getZ() - h_radius );
+
+            var corner1Vector3 = BukkitAdapter.asBlockVector(corner1Location);
+            var corner2Vector3 = BukkitAdapter.asBlockVector(corner2Location);
+
+            var targetRegion = new ProtectedCuboidRegion("temp",true, corner1Vector3, corner2Vector3);
+
+            var regions = defaultRegionManager.getApplicableRegions(targetRegion);
+
+            for (var region:regions) {
+                System.out.println(region.getId());
+                var min = region.getMinimumPoint();
+                var max = region.getMaximumPoint();
+
+                var minFlat= BlockVector2.at(min.getBlockX(), min.getBlockZ());
+                var maxFlat= BlockVector2.at(max.getBlockX(), max.getBlockZ());
+
+            }
+
+            //TODO look into CuboidRegion#getFaces
+
+
+
 
         }else if(newItem.getType() == EnumObjective.WAR.getScoreboardItem()){
-            getAndSetPlayerScoreboard(p,EnumObjective.WAR);
+            allianceScoreboardManager.setPlayerScoreboard(p);
+            updatePlayerScoreboard(p,EnumObjective.WAR);
 
         }else{
             allianceScoreboardManager.resetPlayerScoreboard(p);
@@ -221,11 +255,10 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
                 allianceScoreboardManager.updateAllPlayerScores(player,EnumObjective.BALANCE);
 
-
                 //
-//                getServer().getScheduler().runTaskAsynchronously(this, bukkitTask -> {
-//
-//                });
+                getServer().getScheduler().runTaskAsynchronously(this, bukkitTask -> {
+
+                });
                 //defaultRegion.getIntersectingRegions()
 //                player.sendBlockChange(corner1Location,Material.GOLD_BLOCK.createBlockData());
 //                player.sendBlockChange(corner2Location,Material.GOLD_BLOCK.createBlockData());
@@ -235,12 +268,13 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                 player.sendMessage( "success" );
 
 
+
             }
         }
 
     }
 
-    private void getAndSetPlayerScoreboard(Player player, EnumObjective enumObjective){
+    private void updatePlayerScoreboard(Player player, EnumObjective enumObjective){
         var playerData = playerJsonData.getPlayerData(player.getName());
         if (enumObjective != null){
             allianceScoreboardManager.setPlayerSidebar(player, enumObjective);

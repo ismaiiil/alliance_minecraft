@@ -17,7 +17,7 @@ public enum EnumObjective {
             false,
              Material.WOODEN_AXE) ,
 
-    CONSTANTS("CONSTANTS",
+    CONSTS("CONSTANTS",
             true,
              null);
     @Getter
@@ -27,6 +27,7 @@ public enum EnumObjective {
     @Getter
     @Setter
     private Material scoreboardItem;
+
 
     //TODO use generic type to store data in a DATA CLASS, a bit like PLayerData,
     //for example BALANCE.balance data War.warData etc...
