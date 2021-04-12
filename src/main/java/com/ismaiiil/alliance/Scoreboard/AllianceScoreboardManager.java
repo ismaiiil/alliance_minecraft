@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.Utils.Scoreboard;
+package com.ismaiiil.alliance.Scoreboard;
 
 import com.ismaiiil.alliance.AlliancePlugin;
 import lombok.var;

@@ -1,14 +1,10 @@
-package com.ismaiiil.alliance.Utils.Scoreboard;
+package com.ismaiiil.alliance.Scoreboard;
 
-import lombok.NonNull;
-import lombok.var;
 import org.apache.commons.lang.RandomStringUtils;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Team;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.Objects;
 
 public class AllianceScore {
     private Score scoreText;

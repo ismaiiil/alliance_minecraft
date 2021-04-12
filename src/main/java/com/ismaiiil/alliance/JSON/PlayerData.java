@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.Utils.ConfigLoading.JSON;
+package com.ismaiiil.alliance.JSON;
 
 import java.io.Serializable;
 

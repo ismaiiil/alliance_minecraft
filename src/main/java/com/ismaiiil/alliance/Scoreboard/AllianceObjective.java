@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.Utils.Scoreboard;
+package com.ismaiiil.alliance.Scoreboard;
 
 import lombok.var;
 import org.bukkit.scoreboard.DisplaySlot;
@@ -6,7 +6,7 @@ import org.bukkit.scoreboard.Objective;
 
 import java.util.*;
 
-import static com.ismaiiil.alliance.Utils.Scoreboard.EnumScoreConstants.*;
+import static com.ismaiiil.alliance.Scoreboard.EnumScoreConstants.*;
 
 
 public class  AllianceObjective {

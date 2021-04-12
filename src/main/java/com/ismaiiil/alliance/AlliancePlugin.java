@@ -1,22 +1,22 @@
 package com.ismaiiil.alliance;
 
-import com.ismaiiil.alliance.Utils.ConfigLoading.JSON.PlayerJsonData;
-import com.ismaiiil.alliance.Utils.ConfigLoading.JSON.PlayerData;
-import com.ismaiiil.alliance.Utils.ConfigLoading.JSON.ConfigLoader;
-import com.ismaiiil.alliance.Utils.Scoreboard.AllianceScoreboardManager;
-import com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective;
-import com.ismaiiil.alliance.Utils.Scoreboard.EnumScore;
+import com.ismaiiil.alliance.LandClaiming.AllianceRegionManager;
+import com.ismaiiil.alliance.LandClaiming.Corner;
+import com.ismaiiil.alliance.JSON.PlayerJsonData;
+import com.ismaiiil.alliance.JSON.PlayerData;
+import com.ismaiiil.alliance.JSON.ConfigLoader;
+import com.ismaiiil.alliance.Scoreboard.AllianceScoreboardManager;
+import com.ismaiiil.alliance.Scoreboard.EnumObjective;
+import com.ismaiiil.alliance.Scoreboard.EnumScore;
 import com.ismaiiil.alliance.WorldGuardInstances.RegionsInstance;
 import com.ismaiiil.alliance.WorldGuardInstances.WorldHelperFactory;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector2;
-import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.*;
 import lombok.var;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,7 +27,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.util.Objects;
+import java.util.*;
 
 import static com.sk89q.worldguard.protection.flags.StateFlag.State.DENY;
 import static com.sk89q.worldguard.protection.regions.ProtectedRegion.GLOBAL_REGION;
@@ -37,6 +37,8 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public RegionManager defaultRegionManager;
     public RegionContainer defaultRegionContainer;
     public WorldGuardPlugin worldGuardPlugin;
+
+    public AllianceRegionManager allianceRegionManager;
 
     int radius;
     int defaultBalance;
@@ -48,6 +50,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
     AllianceScoreboardManager allianceScoreboardManager;
     EnumObjective[] enumObjectives;
+    public final long SERVER_TICK = 20L;
 
 
     public AlliancePlugin(){
@@ -85,7 +88,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
 
 
-        //custom json file initilisation
+        //custom json file initialisation
         playerJsonFile = new File(this.getDataFolder().getPath() + File.separator + "player_data.json");
         playerJsonData = ConfigLoader.loadConfig(PlayerJsonData.class, playerJsonFile);
 
@@ -107,22 +110,11 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         allianceScoreboardManager = AllianceScoreboardManager.getInstance();
 
         //periodically create region (do not register it) and chek regions that are his and highlight them
+        allianceRegionManager = AllianceRegionManager.getInstance();
 
-        //TODO set up area highlighting when equipping stick(own claims only)
-        //TODO change highlighting when clicking on edge or corner
         //TODO set up area expansion (size cannot be lower than default radius *2 plus one
         //TODO setup delete region when right clicking inside region
-        //TODO reduce balance accordingly when trying to expand area(dynamic display of used balance and current balance)
-        //TODO creating a claim or expanding cannot intersect another claim
-
-
-        //TODO disable fire spread in global constant
-
-        //TODO refactor area claiming
-        //TODO negative expansion of and edge can go in opposite direction of square( 2, 1, 0, -1, -2), this reflects the image of the area in a mirror
-        //TODO make videos to help users claim areas and expanding them
-        //TODO find solution if a player places 4 land claims around one users land claim
-
+        //TODO reduce balance accordingly when trying to expand area(dynamic display current balance + or - to be used balance)
         //TODO optimise event loops
 
 
@@ -147,42 +139,35 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         var newSlot = event.getNewSlot();
         var newItem = p.getInventory().getItem(newSlot);
 
+
         if (newItem == null){
             newItem = new ItemStack(Material.AIR);
         }
 
+        if(newItem.getType() != EnumObjective.BALANCE.getScoreboardItem()){
 
+            allianceRegionManager.stopPlayerHighlighterTasks(p);
+            allianceRegionManager.resetHighlightedBlocks(p);
+            allianceRegionManager.resetSelectorCache(p);
+
+        }
         if (newItem.getType() == EnumObjective.BALANCE.getScoreboardItem()){
+
+//TODO remove this later
+//        var regs =  defaultRegionManager.getRegions();
+//        for (var reg: regs.values()) {
+//            defaultRegionManager.removeRegion(reg.getId());
+//        }
+
             allianceScoreboardManager.setPlayerScoreboard(p);
             updatePlayerScoreboard(p,EnumObjective.BALANCE);
 
-            //highlight edges of regions within a certain area
-            int h_radius = 4;
-            var targetLocation = p.getLocation();
+            var task = getServer().getScheduler().scheduleAsyncRepeatingTask(
+                    this, () -> allianceRegionManager.highlightRegionsForPlayer(p),
+                    0L, SERVER_TICK * 2 );
 
-            var corner1Location = new Location(p.getWorld(), targetLocation.getX() + h_radius, targetLocation.getY() + h_radius, targetLocation.getZ() + h_radius );
-            var corner2Location = new Location(p.getWorld(), targetLocation.getX() - h_radius,targetLocation.getY() - h_radius , targetLocation.getZ() - h_radius );
-
-            var corner1Vector3 = BukkitAdapter.asBlockVector(corner1Location);
-            var corner2Vector3 = BukkitAdapter.asBlockVector(corner2Location);
-
-            var targetRegion = new ProtectedCuboidRegion("temp",true, corner1Vector3, corner2Vector3);
-
-            var regions = defaultRegionManager.getApplicableRegions(targetRegion);
-
-            for (var region:regions) {
-                System.out.println(region.getId());
-                var min = region.getMinimumPoint();
-                var max = region.getMaximumPoint();
-
-                var minFlat= BlockVector2.at(min.getBlockX(), min.getBlockZ());
-                var maxFlat= BlockVector2.at(max.getBlockX(), max.getBlockZ());
-
-            }
-
-            //TODO look into CuboidRegion#getFaces
-
-
+            allianceRegionManager.stopPlayerHighlighterTasks(p);
+            allianceRegionManager.highlighterTasks.put(p.getUniqueId(), task);
 
 
         }else if(newItem.getType() == EnumObjective.WAR.getScoreboardItem()){
@@ -191,8 +176,11 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
         }else{
             allianceScoreboardManager.resetPlayerScoreboard(p);
+
         }
     }
+
+
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
@@ -218,68 +206,108 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         if ( action.equals( Action.RIGHT_CLICK_BLOCK ) ) {
             if ( item != null && item.getType() == EnumObjective.BALANCE.getScoreboardItem() ) {
 
-
                 var targetBlock = event.getClickedBlock();
 
-                //check user balance before creating region
-                int claimCost = ((radius*2) + 1) * ((radius*2) + 1);
+                //get regions at clicked block
+                var regionsAtBlock = defaultRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(targetBlock.getLocation())).getRegions();
 
-                if(playerData.balance - claimCost < 0){
-                    player.sendMessage("You dnt have enough block balance to claim this area (" + ((radius*2) + 1) + "*"+ ((radius*2) + 1) + "blocks)");
+                ArrayList<ProtectedRegion> ownedRegions = new ArrayList<>();
+                for (var region: regionsAtBlock) {
+                    if (region.isOwner(localPlayer)){
+                        ownedRegions.add(region);
+                    }
+                }
+                if ( allianceRegionManager.selectorCache.containsKey(player.getUniqueId())){
+                    var cachedCorner = allianceRegionManager.selectorCache.get(player.getUniqueId());
+                    var _region = (ProtectedCuboidRegion) defaultRegionManager.getRegion(cachedCorner.regionId);
+
+                    if (_region !=null){
+                        var newCornerValue = allianceRegionManager.getNewCorners(_region,targetBlock,cachedCorner);
+
+
+                        //make a copy of the region (avoid mutating existing regions)
+                        ProtectedCuboidRegion newRegion = new ProtectedCuboidRegion(_region.getId(),
+                                                                                    newCornerValue._1.toBlockVector3(0),
+                                                                                    newCornerValue._2.toBlockVector3(targetBlock.getWorld().getMaxHeight()));
+                        newRegion.copyFrom(_region);
+
+                        //calculate if new region is smaller than the allowed size
+                        var newMax = newRegion.getMaximumPoint();
+                        var newMin = newRegion.getMinimumPoint();
+
+                        var horizontalSide = Math.abs(newMax.getBlockX() - newMin.getBlockX());
+                        var verticalSide = Math.abs(newMax.getBlockZ() - newMin.getBlockZ());
+
+                        if (horizontalSide <  ((radius*2) + 1) ||
+                            verticalSide <  ((radius*2) + 1) ){
+                            player.sendMessage("Region cannot be smaller than " + ((radius*2) + 1));
+                            allianceRegionManager.resetSelectorCache(player);
+                            return;
+                        }
+
+                        if (allianceRegionManager.getRegionsInRegion(newRegion,_region).size() == 0){
+                            defaultRegionManager.removeRegion(_region.getId());
+                            defaultRegionManager.addRegion(newRegion);
+                            allianceRegionManager.resetHighlightedBlocks(player);
+                            getServer().getScheduler().runTaskAsynchronously(
+                                    this, () -> allianceRegionManager.highlightRegionsForPlayer(player));
+                            player.sendMessage( "Region expanded to: " +  newCornerValue._1.toString() + ", " + newCornerValue._2.toString());
+                        }else{
+                            player.sendMessage("You can't modify this claim to overlap another claim");
+                        }
+
+                    }else{
+                        player.sendMessage( "The region you selected does not exist anymore");
+                    }
+
+                    allianceRegionManager.resetSelectorCache(player);
                     return;
                 }
 
-                //target block is never null because of RIGHT_CLICK_BLOCK Action
-                var targetLocation = targetBlock.getLocation();
+                if (ownedRegions.size() == 0){
 
-                var corner1Location = new Location(targetBlock.getWorld(), targetLocation.getX() + radius, targetLocation.getWorld().getMaxHeight(), targetLocation.getZ() + radius );
-                var corner2Location = new Location(targetBlock.getWorld(), targetLocation.getX() - radius,0 , targetLocation.getZ() - radius );
+                    //check user balance before creating region
+                    int claimCost = ((radius*2) + 1) * ((radius*2) + 1);
+                    if(playerData.balance - claimCost < 0){
+                        player.sendMessage("You dnt have enough block balance to claim this area (" + ((radius*2) + 1) + "*"+ ((radius*2) + 1) + "blocks)");
+                        return;
+                    }
 
-                var corner1Vector3 = BukkitAdapter.asBlockVector(corner1Location);
-                var corner2Vector3 = BukkitAdapter.asBlockVector(corner2Location);
+                    var defaultRegion = allianceRegionManager.generateDefaultRegion(player, localPlayer, playerData, targetBlock,radius, claimCost);
 
-                //TODO remove transient
-                var defaultRegion = new ProtectedCuboidRegion("region_"+player.getName()+ "_" + playerData.regionsCreated,true, corner1Vector3, corner2Vector3);
-
-
-                playerData.regionsCreated += 1;
-                playerData.balance -= claimCost;
-                playerData.usedBalance += claimCost;
-
-                ConfigLoader.saveConfig(playerJsonData,playerJsonFile);
-
-                defaultRegion.getOwners().addPlayer(localPlayer);
-                defaultRegion.setFlag(Flags.USE, DENY);
-                defaultRegion.setFlag(Flags.ENTRY, DENY);
-                defaultRegionManager.addRegion(defaultRegion);
-
-                allianceScoreboardManager.updateAllPlayerScores(player,EnumObjective.BALANCE);
-
-                //
-                getServer().getScheduler().runTaskAsynchronously(this, bukkitTask -> {
-
-                });
-                //defaultRegion.getIntersectingRegions()
-//                player.sendBlockChange(corner1Location,Material.GOLD_BLOCK.createBlockData());
-//                player.sendBlockChange(corner2Location,Material.GOLD_BLOCK.createBlockData());
-
-                //restore with  block.getState().update();
-
-                player.sendMessage( "success" );
+                    if (allianceRegionManager.getRegionsInRegion(defaultRegion).size() == 0){
+                        defaultRegionManager.addRegion(defaultRegion);
+                        allianceScoreboardManager.updateAllPlayerScores(player,EnumObjective.BALANCE);
+                        player.sendMessage( "Created default region at " +  targetBlock.getX() + ", " + targetBlock.getY()+ ", " + targetBlock.getZ() + " radius: " + radius);
+                    }else{
+                        player.sendMessage("You can't create a claim that overlaps with another claim");
+                    }
 
 
+                }else{
 
+                    var clickedRegion = ownedRegions.get(0);
+                    //check if block clicked is a corner block
+                    var cornerType = allianceRegionManager.determineCorner(clickedRegion, targetBlock);
+
+                    if (cornerType != null){
+                        var selectorCacheValues = new Corner(clickedRegion.getId(),targetBlock ,cornerType);
+                        allianceRegionManager.selectorCache.put(player.getUniqueId(),selectorCacheValues);
+                        player.sendMessage( "Corner " + selectorCacheValues.cornerTypes + " selected for expansion");
+                    }
+
+                }
             }
         }
 
     }
 
+
+
     private void updatePlayerScoreboard(Player player, EnumObjective enumObjective){
-        var playerData = playerJsonData.getPlayerData(player.getName());
         if (enumObjective != null){
             allianceScoreboardManager.setPlayerSidebar(player, enumObjective);
             allianceScoreboardManager.updateAllPlayerScores(player,enumObjective);
-
         }
 
     }
@@ -305,7 +333,6 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-
         // Plugin shutdown logic
         ConfigLoader.saveConfig(playerJsonData,playerJsonFile);
     }

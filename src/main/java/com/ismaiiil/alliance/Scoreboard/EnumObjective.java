@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.Utils.Scoreboard;
+package com.ismaiiil.alliance.Scoreboard;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -6,7 +6,6 @@ import lombok.var;
 import org.bukkit.Material;
 
 import java.util.Arrays;
-import java.util.HashMap;
 
 public enum EnumObjective {
     BALANCE("Balance",

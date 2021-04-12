@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.Utils.Scoreboard;
+package com.ismaiiil.alliance.Scoreboard;
 
 import java.util.LinkedHashMap;
 

@@ -1,11 +1,7 @@
-package com.ismaiiil.alliance.Utils.Scoreboard.Exceptions;
+package com.ismaiiil.alliance.Scoreboard.Exceptions;
 
-import com.ismaiiil.alliance.Utils.Scoreboard.EnumObjective;
-import com.ismaiiil.alliance.Utils.Scoreboard.EnumScore;
-
-import java.util.LinkedHashMap;
-
-import static com.ismaiiil.alliance.Utils.Scoreboard.EnumScoreConstants.maxLineCount;
+import com.ismaiiil.alliance.Scoreboard.EnumObjective;
+import com.ismaiiil.alliance.Scoreboard.EnumScore;
 
 public class EnumScoreDoesNotMatchObjective extends Exception {
     public EnumScoreDoesNotMatchObjective(EnumScore enumScore, EnumObjective enumObjective) {

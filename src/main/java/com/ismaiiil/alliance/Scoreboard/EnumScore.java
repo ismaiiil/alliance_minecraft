@@ -1,19 +1,16 @@
-package com.ismaiiil.alliance.Utils.Scoreboard;
+package com.ismaiiil.alliance.Scoreboard;
 
 import com.ismaiiil.alliance.AlliancePlugin;
-import com.ismaiiil.alliance.Utils.ConfigLoading.JSON.PlayerData;
-import com.ismaiiil.alliance.Utils.Scoreboard.Exceptions.EnumScoreDoesNotMatchObjective;
-import com.ismaiiil.alliance.Utils.Scoreboard.Exceptions.MaxScoreboardLineCountExceeded;
+import com.ismaiiil.alliance.JSON.PlayerData;
+import com.ismaiiil.alliance.Scoreboard.Exceptions.EnumScoreDoesNotMatchObjective;
+import com.ismaiiil.alliance.Scoreboard.Exceptions.MaxScoreboardLineCountExceeded;
 import lombok.Getter;
-import lombok.SneakyThrows;
-import org.apache.commons.lang.RandomStringUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
-import java.security.SecureRandom;
 import java.util.*;
 
-import static com.ismaiiil.alliance.Utils.Scoreboard.EnumScoreConstants.*;
+import static com.ismaiiil.alliance.Scoreboard.EnumScoreConstants.*;
 
 @Getter
 public enum EnumScore { //Note: order of enum affects the order of the scoreboard
@@ -136,7 +133,7 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
                     totalRows += 2;
                 }
 
-                if (enumScore.getEnumObjective() != entry.getKey()){
+                if (enumScore.getEnumObjective() != EnumObjective.CONSTS && enumScore.getEnumObjective() != entry.getKey()){
                     try {
                         throw new EnumScoreDoesNotMatchObjective(enumScore, entry.getKey());
                     } catch (EnumScoreDoesNotMatchObjective e) {
