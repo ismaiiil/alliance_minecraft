@@ -6,6 +6,7 @@ public class PlayerData implements Serializable {
     public int regionsCreated = 0;
     public int balance = 0;
     public int usedBalance = 0;
+    public int tempBalanceChange = 0;
 
     public PlayerData() {}
 }

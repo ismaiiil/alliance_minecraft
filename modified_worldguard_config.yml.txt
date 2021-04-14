@@ -1,1 +1,7 @@
 regions.high-frequency-flags: true
+
+
+Worldguard permissions:
+
+worldguard.region.remove.own.*:
+  default: true

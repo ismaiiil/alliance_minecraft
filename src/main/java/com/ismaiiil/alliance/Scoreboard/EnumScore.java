@@ -49,7 +49,13 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
         @Override
         public void updateLinkedValue(Player player) {
             PlayerData data = AlliancePlugin.getInstance().playerJsonData.getPlayerData(player.getName());
-            changeScoreValue(this,player,String.valueOf(data.balance));
+            String tempString = "";
+            if (data.tempBalanceChange > 0){
+                tempString += ChatColor.DARK_GREEN + " + " + data.tempBalanceChange;
+            }else if(data.tempBalanceChange < 0){
+                tempString += ChatColor.RED + "" + data.tempBalanceChange;
+            }
+            changeScoreValue(this,player, data.balance + tempString);
         }
     },
 
