@@ -27,10 +27,12 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -150,10 +152,7 @@ public class AllianceRegionManager {
                 getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(alliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
 
                 resetHighlightedBlocks(player);
-                getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> {
-                    highlightRegionsForPlayer(player);
-                }
-                );
+                highlightRegionsForPlayer(player);
 
                 player.sendMessage( "Region expanded to: " +  newCornerValue._1.toString() + ", " + newCornerValue._2.toString());
             }else{
@@ -225,7 +224,14 @@ public class AllianceRegionManager {
             for (var block:walls ) {
                 var _y  = p.getWorld().getHighestBlockYAt(block.getBlockX(), block.getBlockZ());
                 var highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
-                p.sendBlockChange(highlightLocation, Material.GOLD_BLOCK.createBlockData());
+
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        p.sendBlockChange(highlightLocation, Material.GOLD_BLOCK.createBlockData());
+                    }
+                }.runTaskAsynchronously(alliancePlugin);
+
                 tempBlocks.put(region.getId() , p.getWorld().getBlockAt(highlightLocation));
 
             }
@@ -241,10 +247,11 @@ public class AllianceRegionManager {
     }
 
     public void promptUserToDelete(Player player, ProtectedRegion region) {
-        final TextComponent textComponent = Component.text("Do you want to delete this region?")
-                .color(NamedTextColor.RED)
-                .decoration(TextDecoration.BOLD,true)
-                .append(Component.text("Yes").clickEvent(ClickEvent.clickEvent(ClickEvent.Action.SUGGEST_COMMAND,"/rg rem "+region.getId())))
+        final TextComponent textComponent = Component.text("Do you want to delete this region? Click here to delete >>>")
+                .append(Component.text("Yes").clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND,"/rg rem "+region.getId()))
+                        .color(NamedTextColor.RED)
+                        .decoration(TextDecoration.BOLD,true)
+                )
                 ;
         player.sendMessage(textComponent);
 

@@ -109,10 +109,9 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         //periodically create region (do not register it) and chek regions that are his and highlight them
         allianceRegionManager = AllianceRegionManager.getInstance();
 
-
-        //TODO setup delete region when right clicking inside region (rafine zafer la)
-        //TODO fix null pointer (AllianceScoreboardManager.java:99)
-        //TODO fix random tp to only tp players outside of regions
+        //TODO fix formulaire A2S
+        //TODO refactor task management and remove deprecated code
+        //TODO implement random tp into alliance
         //TODO optimise event loops
 
 
@@ -180,14 +179,13 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         var p = event.getPlayer();
-        allianceScoreboardManager.deletePlayerScoreboard(p);
 
         allianceRegionManager.stopPlayerHighlighterTasks(p);
-
         allianceRegionManager.resetSelectorCache(p);
-
         allianceRegionManager.stopBalanceChangeTasks(p);
         allianceRegionManager.resetBalanceChange(p);
+        allianceScoreboardManager.deletePlayerScoreboard(p);
+
 
     }
 
@@ -243,6 +241,19 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                 }
 
             }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerCommand(PlayerCommandPreprocessEvent e){
+        var theCommandRan = e.getMessage();
+
+        if (theCommandRan.contains("/rg rem")){
+            allianceRegionManager.resetHighlightedBlocks(e.getPlayer());
+
+            allianceRegionManager.highlightRegionsForPlayer(e.getPlayer());
+
+            allianceScoreboardManager.updateAllPlayerScores(e.getPlayer(),EnumObjective.BALANCE);
         }
     }
 
