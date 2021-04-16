@@ -6,6 +6,9 @@ import com.ismaiiil.alliance.AlliancePlugin;
 import com.ismaiiil.alliance.JSON.ConfigLoader;
 import com.ismaiiil.alliance.JSON.PlayerData;
 import com.ismaiiil.alliance.JSON.PlayerJsonData;
+import com.ismaiiil.alliance.LandClaiming.CacheTasks.Implemented.BalanceCache;
+import com.ismaiiil.alliance.LandClaiming.CacheTasks.Implemented.BorderCache;
+import com.ismaiiil.alliance.LandClaiming.CacheTasks.Implemented.SelectorCache;
 import com.ismaiiil.alliance.Scoreboard.AllianceScoreboardManager;
 import com.ismaiiil.alliance.Scoreboard.EnumObjective;
 import com.ismaiiil.alliance.Scoreboard.EnumScore;
@@ -25,15 +28,12 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -50,11 +50,9 @@ public class AllianceRegionManager {
     private PlayerJsonData playerJsonData;
     private int defaultRadius;
 
-    public HashMap<UUID, Multimap<String, Block>> borderHighlighterCache = new HashMap<>();
-    public HashMap<UUID,Integer> borderHighlighterTasks = new HashMap<>();
-
-    public HashMap<UUID, Corner> selectorCache = new HashMap<>();
-    public HashMap<UUID, Integer> balanceChangeTasks = new HashMap<>();
+    public BorderCache borderCache = new BorderCache();
+    public BalanceCache BalanceCache = new BalanceCache();
+    public SelectorCache selectorCache = new SelectorCache();
 
     private AllianceRegionManager(){
         alliancePlugin = AlliancePlugin.getInstance();
@@ -102,13 +100,13 @@ public class AllianceRegionManager {
     }
 
     public void expandPlayerRegion(Player player, Block targetBlock) {
-        var cachedCorner = selectorCache.get(player.getUniqueId());
+        var cachedCorner = selectorCache.get(player);
         var _region = (ProtectedCuboidRegion) regionManager.getRegion(cachedCorner.regionId);
         var playerData = playerJsonData.players.get(player.getName());
 
         if (cachedCorner.oldCorner.equals(BlockVector2.at(targetBlock.getX(),targetBlock.getZ()))){
             player.sendMessage( "You can't select the same point to expand");
-            resetSelectorCache(player);
+            selectorCache.reset(player);
             return;
         }
 
@@ -136,7 +134,7 @@ public class AllianceRegionManager {
             if (sides._1 <  ((defaultRadius *2)) ||
                     sides._2 <  ((defaultRadius *2)) ){
                 player.sendMessage("Region cannot be smaller than " + ((defaultRadius *2) + 1));
-                resetSelectorCache(player);
+                selectorCache.reset(player);
                 return;
             }
 
@@ -151,7 +149,7 @@ public class AllianceRegionManager {
                 allianceScoreboardManager.updatePlayerScore(player,EnumScore.BALANCE_CURRENT);
                 getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(alliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
 
-                resetHighlightedBlocks(player);
+                borderCache.reset(player);
                 highlightRegionsForPlayer(player);
 
                 player.sendMessage( "Region expanded to: " +  newCornerValue._1.toString() + ", " + newCornerValue._2.toString());
@@ -163,12 +161,12 @@ public class AllianceRegionManager {
             player.sendMessage( "The region you selected does not exist anymore");
         }
 
-        resetSelectorCache(player);
+        selectorCache.reset(player);
     }
 
     public void calculateNewRegionCost(Player player) {
         var targetBlock = player.getTargetBlock(5);
-        var cachedCorner = selectorCache.get(player.getUniqueId());
+        var cachedCorner = selectorCache.get(player);
         if (cachedCorner == null || targetBlock == null){return;}
         var _region = (ProtectedCuboidRegion) regionManager.getRegion(cachedCorner.regionId);
         var playerData = playerJsonData.players.get(player.getName());
@@ -176,8 +174,7 @@ public class AllianceRegionManager {
         var newCornerValue = getNewCorners(_region, targetBlock,cachedCorner);
 
         if (cachedCorner.oldCorner.equals(BlockVector2.at(targetBlock.getX(),targetBlock.getZ()))){
-            playerData.tempBalanceChange = 0;
-            allianceScoreboardManager.updatePlayerScore(player,EnumScore.BALANCE_CURRENT);
+            BalanceCache.reset(player);
             return;
         }
 
@@ -189,9 +186,7 @@ public class AllianceRegionManager {
         var oldArea = _region.volume() / (_region.getMaximumPoint().getBlockY() - _region.getMinimumPoint().getBlockY());
         var newArea = newRegion.volume();
 
-        playerData.tempBalanceChange = oldArea - newArea;
-
-        allianceScoreboardManager.updatePlayerScore(player, EnumScore.BALANCE_CURRENT);
+        BalanceCache.add(player, oldArea - newArea);
     }
 
     public void highlightRegionsForPlayer(Player p) {
@@ -223,12 +218,22 @@ public class AllianceRegionManager {
             Multimap<String, Block> tempBlocks = ArrayListMultimap.create();
             for (var block:walls ) {
                 var _y  = p.getWorld().getHighestBlockYAt(block.getBlockX(), block.getBlockZ());
-                var highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
 
+                var highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
+                var blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
+                while (blockMaterial == Material.WATER ||
+                        blockMaterial == Material.LAVA) {
+                    _y -= 1;
+                    highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
+                    blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
+                    if (_y == 0){break;}
+                }
+
+                Location finalHighlightLocation = highlightLocation;
                 new BukkitRunnable() {
                     @Override
                     public void run() {
-                        p.sendBlockChange(highlightLocation, Material.GOLD_BLOCK.createBlockData());
+                        p.sendBlockChange(finalHighlightLocation, Material.GOLD_BLOCK.createBlockData());
                     }
                 }.runTaskAsynchronously(alliancePlugin);
 
@@ -236,14 +241,28 @@ public class AllianceRegionManager {
 
             }
 
-            if (borderHighlighterCache.containsKey(p.getUniqueId())){
-                Multimap<String, Block> tempCache = borderHighlighterCache.get(p.getUniqueId());
+            if (borderCache.get(p) != null ){
+                Multimap<String, Block> tempCache = borderCache.get(p) ;
                 tempCache.putAll(tempBlocks);
             }else{
-                borderHighlighterCache.put(p.getUniqueId(),tempBlocks);
+                borderCache.add(p,tempBlocks);
             }
 
         }
+    }
+
+    public boolean selectFirstCornerBlock(Player player, Block targetBlock, ArrayList<ProtectedRegion> ownedRegions) {
+        var clickedRegion = ownedRegions.get(0);
+        //check if block clicked is a corner block
+        var cornerType = determineCorner(clickedRegion, targetBlock);
+
+        if (cornerType != null){
+            var selectorCacheValues = new Corner(clickedRegion.getId(), targetBlock,cornerType);
+            selectorCache.add(player,selectorCacheValues);
+            player.sendMessage( "Corner " + selectorCacheValues.cornerTypes + " selected for expansion");
+            return true;
+        }
+        return false;
     }
 
     public void promptUserToDelete(Player player, ProtectedRegion region) {
@@ -282,43 +301,6 @@ public class AllianceRegionManager {
         BlockVector3 corner2Vector3 = BukkitAdapter.asBlockVector(corner2Location);
 
         return new Tuple<>(corner1Vector3, corner2Vector3);
-    }
-
-    public void stopPlayerHighlighterTasks(Player p) {
-        if (borderHighlighterTasks.containsKey(p.getUniqueId())) {
-            AlliancePlugin.getInstance().getServer().getScheduler().cancelTask(borderHighlighterTasks.get(p.getUniqueId()));
-            borderHighlighterTasks.remove(p.getUniqueId());
-        }
-    }
-
-    public void resetHighlightedBlocks(Player p) {
-        if (borderHighlighterCache.containsKey(p.getUniqueId())){
-            var tempBlocks = borderHighlighterCache.get(p.getUniqueId());
-            for ( var block : tempBlocks.values()){
-                getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> {
-                    block.getState().update();
-                });
-            }
-            borderHighlighterCache.remove(p.getUniqueId());
-        }
-    }
-
-    public void resetBalanceChange(Player p) {
-        var playerData = playerJsonData.players.get(p.getName());
-        balanceChangeTasks.remove(p.getUniqueId());
-        playerData.tempBalanceChange = 0;
-        allianceScoreboardManager.updatePlayerScore(p,EnumScore.BALANCE_CURRENT);
-    }
-
-    public void stopBalanceChangeTasks(Player p) {
-        if (balanceChangeTasks.containsKey(p.getUniqueId())) {
-            AlliancePlugin.getInstance().getServer().getScheduler().cancelTask(balanceChangeTasks.get(p.getUniqueId()));
-            balanceChangeTasks.remove(p.getUniqueId());
-        }
-    }
-
-    public void resetSelectorCache(Player p) {
-        selectorCache.remove(p.getUniqueId());
     }
 
     public CornerTypes determineCorner(ProtectedRegion region, Block selectedBlock){
@@ -402,19 +384,6 @@ public class AllianceRegionManager {
         return regions;
     }
 
-    public boolean selectFirstCornerBlock(Player player, Block targetBlock, ArrayList<ProtectedRegion> ownedRegions) {
-        var clickedRegion = ownedRegions.get(0);
-        //check if block clicked is a corner block
-        var cornerType = determineCorner(clickedRegion, targetBlock);
-
-        if (cornerType != null){
-            var selectorCacheValues = new Corner(clickedRegion.getId(), targetBlock,cornerType);
-            selectorCache.put(player.getUniqueId(),selectorCacheValues);
-            player.sendMessage( "Corner " + selectorCacheValues.cornerTypes + " selected for expansion");
-            return true;
-        }
-        return false;
-    }
 
     /**
      * Calculate sides for a region

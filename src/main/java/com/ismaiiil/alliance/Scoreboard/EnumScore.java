@@ -2,6 +2,7 @@ package com.ismaiiil.alliance.Scoreboard;
 
 import com.ismaiiil.alliance.AlliancePlugin;
 import com.ismaiiil.alliance.JSON.PlayerData;
+import com.ismaiiil.alliance.LandClaiming.AllianceRegionManager;
 import com.ismaiiil.alliance.Scoreboard.Exceptions.EnumScoreDoesNotMatchObjective;
 import com.ismaiiil.alliance.Scoreboard.Exceptions.MaxScoreboardLineCountExceeded;
 import lombok.Getter;
@@ -46,14 +47,25 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
             ZERO,
             ChatColor.GREEN.toString(),
             false) {
+
         @Override
         public void updateLinkedValue(Player player) {
             PlayerData data = AlliancePlugin.getInstance().playerJsonData.getPlayerData(player.getName());
             String tempString = "";
-            if (data.tempBalanceChange > 0){
-                tempString += ChatColor.DARK_GREEN + " + " + data.tempBalanceChange;
-            }else if(data.tempBalanceChange < 0){
-                tempString += ChatColor.RED + "" + data.tempBalanceChange;
+
+            AllianceRegionManager arm = AllianceRegionManager.getInstance();
+            Integer tempBalanceChange;
+
+            if (arm.BalanceCache.get(player) != null){
+                tempBalanceChange = arm.BalanceCache.get(player);
+            }else {
+                tempBalanceChange = 0;
+            }
+
+            if (tempBalanceChange > 0){
+                tempString += ChatColor.DARK_GREEN + " + " + tempBalanceChange;
+            }else if(tempBalanceChange < 0){
+                tempString += ChatColor.RED + "" + tempBalanceChange;
             }
             changeScoreValue(this,player, data.balance + tempString);
         }

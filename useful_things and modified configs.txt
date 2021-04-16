@@ -5,3 +5,8 @@ Worldguard permissions:
 
 worldguard.region.remove.own.*:
   default: true
+
+
+
+useful commands
+  /fill ~ ~-10 ~ ~30 ~10 ~30 air replace minecraft:grass

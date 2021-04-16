@@ -15,7 +15,6 @@ import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.*;
 import lombok.var;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -24,6 +23,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.util.*;
@@ -38,7 +38,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public RegionContainer defaultRegionContainer;
     public WorldGuardPlugin worldGuardPlugin;
 
-    public AllianceRegionManager allianceRegionManager;
+    public AllianceRegionManager arm;
 
     public int radius;
     int defaultBalance;
@@ -107,10 +107,11 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         allianceScoreboardManager = AllianceScoreboardManager.getInstance();
 
         //periodically create region (do not register it) and chek regions that are his and highlight them
-        allianceRegionManager = AllianceRegionManager.getInstance();
+        arm = AllianceRegionManager.getInstance();
 
-        //TODO fix formulaire A2S
-        //TODO refactor task management and remove deprecated code
+        //TODO make hashmap access thread safe
+        //TODO optimise highlighting to not highlight already highlighted blocks
+        //TODO fix highlight flicker
         //TODO implement random tp into alliance
         //TODO optimise event loops
 
@@ -143,12 +144,13 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
         if(newItem.getType() != EnumObjective.BALANCE.getScoreboardItem()){
 
-            allianceRegionManager.stopPlayerHighlighterTasks(p);
-            allianceRegionManager.resetHighlightedBlocks(p);
-            allianceRegionManager.resetSelectorCache(p);
+            arm.borderCache.tasks.stop(p);
+            arm.borderCache.reset(p);
 
-            allianceRegionManager.stopBalanceChangeTasks(p);
-            allianceRegionManager.resetBalanceChange(p);
+            arm.selectorCache.reset(p);
+
+            arm.BalanceCache.tasks.stop(p);
+            arm.BalanceCache.reset(p);
 
         }
         if (newItem.getType() == EnumObjective.BALANCE.getScoreboardItem()){
@@ -156,12 +158,8 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
             allianceScoreboardManager.setPlayerScoreboard(p);
             updatePlayerScoreboard(p,EnumObjective.BALANCE);
 
-            var task = getServer().getScheduler().scheduleAsyncRepeatingTask(
-                    this, () -> allianceRegionManager.highlightRegionsForPlayer(p),
-                    0L, SERVER_TICK * 2 );
-
-            allianceRegionManager.stopPlayerHighlighterTasks(p);
-            allianceRegionManager.borderHighlighterTasks.put(p.getUniqueId(), task);
+            arm.borderCache.tasks.stop(p);
+            arm.borderCache.tasks.add(p,() -> arm.highlightRegionsForPlayer(p) , 0L, SERVER_TICK * 2 );
 
 
         }else if(newItem.getType() == EnumObjective.WAR.getScoreboardItem()){
@@ -180,11 +178,17 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         var p = event.getPlayer();
 
-        allianceRegionManager.stopPlayerHighlighterTasks(p);
-        allianceRegionManager.resetSelectorCache(p);
-        allianceRegionManager.stopBalanceChangeTasks(p);
-        allianceRegionManager.resetBalanceChange(p);
+        arm.borderCache.tasks.stop(p);
+        arm.selectorCache.reset(p);
+        arm.BalanceCache.tasks.stop(p);
+        arm.BalanceCache.reset(p);
         allianceScoreboardManager.deletePlayerScoreboard(p);
+
+        //TODO remove this later
+//        var regs =  defaultRegionManager.getRegions();
+//        for (var reg: regs.values()) {
+//            defaultRegionManager.removeRegion(reg.getId());
+//        }
 
 
     }
@@ -206,7 +210,6 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
             if ( item != null && item.getType() == EnumObjective.BALANCE.getScoreboardItem() ) {
 
                 var targetBlock = event.getClickedBlock();
-
                 //get regions at clicked block
                 var regionsAtBlock = defaultRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(targetBlock.getLocation())).getRegions();
                 ArrayList<ProtectedRegion> ownedRegionsAtBlock = regionsAtBlock.stream().filter(region -> region.isOwner(localPlayer)).collect(toCollection(ArrayList::new));
@@ -217,27 +220,28 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                     }
                 }
 
-                if ( !allianceRegionManager.selectorCache.containsKey(player.getUniqueId())){
+                if ( arm.selectorCache.get(player) == null){
                     if (ownedRegionsAtBlock.size() == 0){
-                        allianceRegionManager.createDefaultRegion(player, targetBlock);
+                        arm.createDefaultRegion(player, targetBlock);
                     }else{
-                        var hasSucceeded = allianceRegionManager.selectFirstCornerBlock(player, targetBlock, ownedRegionsAtBlock);
+                        var hasSucceeded = arm.selectFirstCornerBlock(player, targetBlock, ownedRegionsAtBlock);
                         if (hasSucceeded){
-                            var task = Bukkit.getServer().getScheduler().scheduleAsyncRepeatingTask(this, () -> {
-                                allianceRegionManager.calculateNewRegionCost(player);
-                            },0, SERVER_TICK/10);
-                            allianceRegionManager.balanceChangeTasks.put(player.getUniqueId(),task);
-                        }else{
-                            allianceRegionManager.promptUserToDelete(player, ownedRegionsAtBlock.get(0));
-                        }
+                            arm.BalanceCache.tasks.add(player, new BukkitRunnable() {
+                                @Override
+                                public void run() {
+                                    arm.calculateNewRegionCost(player);
+                                }
+                            }, 0, SERVER_TICK/10);
 
+                        }else{
+                            arm.promptUserToDelete(player, ownedRegionsAtBlock.get(0));
+                        }
                     }
                 }else{
-                    allianceRegionManager.expandPlayerRegion(player, targetBlock);
+                    arm.expandPlayerRegion(player, targetBlock);
 
-                    allianceRegionManager.stopBalanceChangeTasks(player);
-                    allianceRegionManager.resetBalanceChange(player);
-
+                    arm.BalanceCache.tasks.stop(player);
+                    arm.BalanceCache.reset(player);
                 }
 
             }
@@ -249,9 +253,9 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         var theCommandRan = e.getMessage();
 
         if (theCommandRan.contains("/rg rem")){
-            allianceRegionManager.resetHighlightedBlocks(e.getPlayer());
+            arm.borderCache.reset(e.getPlayer());
 
-            allianceRegionManager.highlightRegionsForPlayer(e.getPlayer());
+            arm.highlightRegionsForPlayer(e.getPlayer());
 
             allianceScoreboardManager.updateAllPlayerScores(e.getPlayer(),EnumObjective.BALANCE);
         }
@@ -291,11 +295,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         // Plugin shutdown logic
         ConfigLoader.saveConfig(playerJsonData,playerJsonFile);
 
-        //TODO remove this later
-//        var regs =  defaultRegionManager.getRegions();
-//        for (var reg: regs.values()) {
-//            defaultRegionManager.removeRegion(reg.getId());
-//        }
+
     }
 
 
