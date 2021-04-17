@@ -56,8 +56,8 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
             AllianceRegionManager arm = AllianceRegionManager.getInstance();
             Integer tempBalanceChange;
 
-            if (arm.BalanceCache.get(player) != null){
-                tempBalanceChange = arm.BalanceCache.get(player);
+            if (arm.balanceCache.get(player) != null){
+                tempBalanceChange = arm.balanceCache.get(player);
             }else {
                 tempBalanceChange = 0;
             }

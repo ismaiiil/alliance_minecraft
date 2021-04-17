@@ -1,7 +1,5 @@
 package com.ismaiiil.alliance.LandClaiming;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import com.ismaiiil.alliance.AlliancePlugin;
 import com.ismaiiil.alliance.JSON.ConfigLoader;
 import com.ismaiiil.alliance.JSON.PlayerData;
@@ -51,7 +49,7 @@ public class AllianceRegionManager {
     private int defaultRadius;
 
     public BorderCache borderCache = new BorderCache();
-    public BalanceCache BalanceCache = new BalanceCache();
+    public BalanceCache balanceCache = new BalanceCache();
     public SelectorCache selectorCache = new SelectorCache();
 
     private AllianceRegionManager(){
@@ -149,8 +147,17 @@ public class AllianceRegionManager {
                 allianceScoreboardManager.updatePlayerScore(player,EnumScore.BALANCE_CURRENT);
                 getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(alliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
 
-                borderCache.reset(player);
-                highlightRegionsForPlayer(player);
+                AlliancePlugin.printThread("expandPlayerRegion");
+
+                //todo breakdown wall blocks caching into a method that gets all the wall blocks
+                //todo do not reset the blocks that intersect the set of newRegionBlocks and oldRegionBlocks
+                var alreadyHighlighted = borderCache.get(player).get(_region.getId());
+                borderCache.reset(player, alreadyHighlighted)
+                    .thenApply(empty -> {
+                        AlliancePlugin.printThread("thenApply");
+                        highlightRegionsForPlayer(player);
+                        return null;
+                    });
 
                 player.sendMessage( "Region expanded to: " +  newCornerValue._1.toString() + ", " + newCornerValue._2.toString());
             }else{
@@ -174,7 +181,7 @@ public class AllianceRegionManager {
         var newCornerValue = getNewCorners(_region, targetBlock,cachedCorner);
 
         if (cachedCorner.oldCorner.equals(BlockVector2.at(targetBlock.getX(),targetBlock.getZ()))){
-            BalanceCache.reset(player);
+            balanceCache.reset(player);
             return;
         }
 
@@ -186,7 +193,7 @@ public class AllianceRegionManager {
         var oldArea = _region.volume() / (_region.getMaximumPoint().getBlockY() - _region.getMinimumPoint().getBlockY());
         var newArea = newRegion.volume();
 
-        BalanceCache.add(player, oldArea - newArea);
+        balanceCache.add(player, oldArea - newArea);
     }
 
     public void highlightRegionsForPlayer(Player p) {
@@ -200,55 +207,73 @@ public class AllianceRegionManager {
 
         var regions = getRegionsInRegion(targetRegion);
 
+        AlliancePlugin.printThread("highlightRegionsForPlayer");
+
         for (var region:regions) {
             if (!region.isOwner(alliancePlugin.worldGuardPlugin.wrapPlayer(p))){
                 continue;
             }
-            //System.out.println(region.getId());
-            var min = region.getMinimumPoint();
-            var max = region.getMaximumPoint();
+            ArrayList<Block> tempBlocks = new ArrayList<>();
+            HashMap<String,ArrayList<Block>> tempMap = new HashMap<>();
+            tempMap.put(region.getId(), tempBlocks);
 
-            var minFlat= BlockVector3.at(min.getBlockX(),targetLocation.getY(),  min.getBlockZ());
-            var maxFlat= BlockVector3.at(max.getBlockX(),targetLocation.getY(), max.getBlockZ());
+            getBorderBlocks(region, p,
+                (highlightLocation, blockMaterial) -> {
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            if (blockMaterial != Material.GOLD_BLOCK) {
+                                p.sendBlockChange(highlightLocation, Material.GOLD_BLOCK.createBlockData());
+                            }
+                        }
+                    }.runTaskAsynchronously(alliancePlugin);
 
-            var cuboid = new CuboidRegion(BukkitAdapter.adapt(p.getWorld()),minFlat,maxFlat);
-
-            var walls = cuboid.getWalls();
-
-            Multimap<String, Block> tempBlocks = ArrayListMultimap.create();
-            for (var block:walls ) {
-                var _y  = p.getWorld().getHighestBlockYAt(block.getBlockX(), block.getBlockZ());
-
-                var highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
-                var blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
-                while (blockMaterial == Material.WATER ||
-                        blockMaterial == Material.LAVA) {
-                    _y -= 1;
-                    highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
-                    blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
-                    if (_y == 0){break;}
+                    tempBlocks.add(p.getWorld().getBlockAt(highlightLocation));
                 }
-
-                Location finalHighlightLocation = highlightLocation;
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        p.sendBlockChange(finalHighlightLocation, Material.GOLD_BLOCK.createBlockData());
-                    }
-                }.runTaskAsynchronously(alliancePlugin);
-
-                tempBlocks.put(region.getId() , p.getWorld().getBlockAt(highlightLocation));
-
-            }
+            );
 
             if (borderCache.get(p) != null ){
-                Multimap<String, Block> tempCache = borderCache.get(p) ;
-                tempCache.putAll(tempBlocks);
+                borderCache.get(p).put(region.getId(), tempBlocks);
+
             }else{
-                borderCache.add(p,tempBlocks);
+                borderCache.add(p, tempMap);
             }
 
         }
+    }
+
+    public ArrayList<Block> getBorderBlocks(ProtectedRegion region, Player p, CallbackForEachBlock callbackForEachBlock){
+        var returnArray = new ArrayList<Block>();
+        var min = region.getMinimumPoint();
+        var max = region.getMaximumPoint();
+
+        var minFlat= BlockVector3.at(min.getBlockX(),p.getLocation().getY(),  min.getBlockZ());
+        var maxFlat= BlockVector3.at(max.getBlockX(),p.getLocation().getY(), max.getBlockZ());
+
+        var cuboid = new CuboidRegion(BukkitAdapter.adapt(p.getWorld()),minFlat,maxFlat);
+
+        var walls = cuboid.getWalls();
+
+        for (var block:walls ) {
+
+            var _y  = p.getWorld().getHighestBlockYAt(block.getBlockX(), block.getBlockZ());
+
+            var highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
+            var blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
+            while (blockMaterial == Material.WATER ||
+                    blockMaterial == Material.LAVA) {
+                _y -= 1;
+                highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
+                blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
+                if (_y == 0){break;}
+            }
+
+            returnArray.add( p.getWorld().getBlockAt(highlightLocation));
+
+            callbackForEachBlock.block(highlightLocation,blockMaterial);
+
+        }
+        return returnArray;
     }
 
     public boolean selectFirstCornerBlock(Player player, Block targetBlock, ArrayList<ProtectedRegion> ownedRegions) {
@@ -385,6 +410,7 @@ public class AllianceRegionManager {
     }
 
 
+
     /**
      * Calculate sides for a region
      * @param region the region we want to calculate
@@ -402,4 +428,4 @@ public class AllianceRegionManager {
     }
 
 
-}
+}                

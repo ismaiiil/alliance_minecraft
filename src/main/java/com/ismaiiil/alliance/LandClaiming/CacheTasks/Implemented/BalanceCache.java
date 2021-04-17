@@ -6,13 +6,14 @@ import com.ismaiiil.alliance.Scoreboard.AllianceScoreboardManager;
 import com.ismaiiil.alliance.Scoreboard.EnumScore;
 import org.bukkit.entity.Player;
 
-public class BalanceCache extends PlayerCache<Integer> {
+public class BalanceCache extends PlayerCache<Integer, Boolean> {
     public PlayerTasks tasks = new PlayerTasks();
 
     @Override
-    public void reset(Player player) {
+    public Boolean reset(Player player) {
         cache.remove(player.getUniqueId());
         AllianceScoreboardManager.getInstance().updatePlayerScore(player, EnumScore.BALANCE_CURRENT);
+        return true;
     }
 
     @Override

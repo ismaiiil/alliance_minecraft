@@ -1,3 +1,6 @@
+performance:
+  min-threads: 1
+  max-threads: 10
 defaults:
   radius: 5
   starting-balance: 242

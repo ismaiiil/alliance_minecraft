@@ -2,15 +2,14 @@ package com.ismaiiil.alliance.LandClaiming.CacheTasks.Abstract;
 
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class PlayerCache<VALUE>{
+public abstract class PlayerCache<VALUE,RETURN>{
 
     protected ConcurrentHashMap<UUID,VALUE> cache = new ConcurrentHashMap<>();
 
-    public abstract void reset(Player player);
+    public abstract RETURN reset(Player player);
 
     public VALUE get(Player player){
         if (cache.containsKey(player.getUniqueId())){

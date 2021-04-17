@@ -1,5 +1,6 @@
 package com.ismaiiil.alliance;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ismaiiil.alliance.LandClaiming.AllianceRegionManager;
 import com.ismaiiil.alliance.JSON.PlayerJsonData;
 import com.ismaiiil.alliance.JSON.PlayerData;
@@ -27,6 +28,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.*;
 
 import static com.sk89q.worldguard.protection.flags.StateFlag.State.DENY;
 import static com.sk89q.worldguard.protection.regions.ProtectedRegion.GLOBAL_REGION;
@@ -52,6 +54,10 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     EnumObjective[] enumObjectives;
     public final long SERVER_TICK = 20L;
 
+    private int minPoolSize;
+    private int maxPoolSize;
+    public static ExecutorService pool;
+
 
     public AlliancePlugin(){
         inst = this;
@@ -74,6 +80,10 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         saveDefaultConfig();
         radius = getConfig().getInt("defaults.radius");
         defaultBalance = getConfig().getInt("defaults.starting-balance");
+
+        minPoolSize = getConfig().getInt("performance.min-threads");
+        maxPoolSize = getConfig().getInt("performance.max-threads");
+
 
         for (EnumObjective _eo: enumObjectives) {
 
@@ -109,7 +119,13 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         //periodically create region (do not register it) and chek regions that are his and highlight them
         arm = AllianceRegionManager.getInstance();
 
-        //TODO make hashmap access thread safe
+//        pool = new ThreadPoolExecutor(minPoolSize, maxPoolSize, 1000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(maxPoolSize));
+        pool = new ThreadPoolExecutor(minPoolSize, maxPoolSize, 1000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(maxPoolSize),
+                new ThreadFactoryBuilder()
+                        .setNameFormat("ALLIANCE POOL-%d")
+                        .setDaemon(false)
+                        .build());
+
         //TODO optimise highlighting to not highlight already highlighted blocks
         //TODO fix highlight flicker
         //TODO implement random tp into alliance
@@ -149,8 +165,8 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
             arm.selectorCache.reset(p);
 
-            arm.BalanceCache.tasks.stop(p);
-            arm.BalanceCache.reset(p);
+            arm.balanceCache.tasks.stop(p);
+            arm.balanceCache.reset(p);
 
         }
         if (newItem.getType() == EnumObjective.BALANCE.getScoreboardItem()){
@@ -159,7 +175,10 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
             updatePlayerScoreboard(p,EnumObjective.BALANCE);
 
             arm.borderCache.tasks.stop(p);
-            arm.borderCache.tasks.add(p,() -> arm.highlightRegionsForPlayer(p) , 0L, SERVER_TICK * 2 );
+            arm.borderCache.tasks.add(p,() -> {
+                printThread("scheduleAsync");
+                arm.highlightRegionsForPlayer(p);
+            }, 0L, SERVER_TICK * 2 );
 
 
         }else if(newItem.getType() == EnumObjective.WAR.getScoreboardItem()){
@@ -174,14 +193,15 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
 
 
+
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         var p = event.getPlayer();
 
         arm.borderCache.tasks.stop(p);
         arm.selectorCache.reset(p);
-        arm.BalanceCache.tasks.stop(p);
-        arm.BalanceCache.reset(p);
+        arm.balanceCache.tasks.stop(p);
+        arm.balanceCache.reset(p);
         allianceScoreboardManager.deletePlayerScoreboard(p);
 
         //TODO remove this later
@@ -226,7 +246,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                     }else{
                         var hasSucceeded = arm.selectFirstCornerBlock(player, targetBlock, ownedRegionsAtBlock);
                         if (hasSucceeded){
-                            arm.BalanceCache.tasks.add(player, new BukkitRunnable() {
+                            arm.balanceCache.tasks.add(player, new BukkitRunnable() {
                                 @Override
                                 public void run() {
                                     arm.calculateNewRegionCost(player);
@@ -238,10 +258,13 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                         }
                     }
                 }else{
+
+                    printThread("mainThread  ");
+
                     arm.expandPlayerRegion(player, targetBlock);
 
-                    arm.BalanceCache.tasks.stop(player);
-                    arm.BalanceCache.reset(player);
+                    arm.balanceCache.tasks.stop(player);
+                    arm.balanceCache.reset(player);
                 }
 
             }
@@ -253,11 +276,13 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         var theCommandRan = e.getMessage();
 
         if (theCommandRan.contains("/rg rem")){
-            arm.borderCache.reset(e.getPlayer());
+            arm.borderCache.reset(e.getPlayer()).thenApply(
+                    bool ->{
+                        arm.highlightRegionsForPlayer(e.getPlayer());
+                        allianceScoreboardManager.updateAllPlayerScores(e.getPlayer(),EnumObjective.BALANCE);
+                        return null;
+                    });
 
-            arm.highlightRegionsForPlayer(e.getPlayer());
-
-            allianceScoreboardManager.updateAllPlayerScores(e.getPlayer(),EnumObjective.BALANCE);
         }
     }
 
@@ -287,7 +312,9 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         }
     }
 
-
+    public static void printThread(String s) {
+        //System.out.println("Current THREAD: " + Thread.currentThread().getName() + " running inside " + s);
+    }
 
 
     @Override

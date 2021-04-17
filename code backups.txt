@@ -1,0 +1,46 @@
+regionHighlighter
+
+//            var min = region.getMinimumPoint();
+//            var max = region.getMaximumPoint();
+//
+//            var minFlat= BlockVector3.at(min.getBlockX(),targetLocation.getY(),  min.getBlockZ());
+//            var maxFlat= BlockVector3.at(max.getBlockX(),targetLocation.getY(), max.getBlockZ());
+//
+//            var cuboid = new CuboidRegion(BukkitAdapter.adapt(p.getWorld()),minFlat,maxFlat);
+//
+//            var walls = cuboid.getWalls();
+//
+//            ArrayList<Block> tempBlocks = new ArrayList<>();
+//            HashMap<String,ArrayList<Block>> tempMap = new HashMap<>();
+//            tempMap.put(region.getId(), tempBlocks);
+//            for (var block:walls ) {
+//
+//                var _y  = p.getWorld().getHighestBlockYAt(block.getBlockX(), block.getBlockZ());
+//
+//                var highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
+//                var blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
+//                while (blockMaterial == Material.WATER ||
+//                        blockMaterial == Material.LAVA) {
+//                    _y -= 1;
+//                    highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
+//                    blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
+//                    if (_y == 0){break;}
+//                }
+//
+//                Location finalHighlightLocation = highlightLocation;
+//                Material finalBlockMaterial = blockMaterial;
+//
+//                new BukkitRunnable() {
+//                    @Override
+//                    public void run() {
+//                        if (finalBlockMaterial != Material.GOLD_BLOCK){
+//                            p.sendBlockChange(finalHighlightLocation, Material.GOLD_BLOCK.createBlockData());
+//                        }
+//                    }
+//                }.runTaskAsynchronously(alliancePlugin);
+//
+//                tempBlocks.add(p.getWorld().getBlockAt(highlightLocation));
+//
+//
+//
+//            }
