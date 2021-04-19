@@ -34,6 +34,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
+import java.util.function.Consumer;
 
 import static com.ismaiiil.alliance.LandClaiming.CornerTypes.*;
 import static com.sk89q.worldguard.protection.flags.StateFlag.State.DENY;
@@ -41,36 +42,28 @@ import static org.bukkit.Bukkit.getServer;
 
 public class AllianceRegionManager {
     private static AllianceRegionManager inst;
-    private AlliancePlugin alliancePlugin;
-    private RegionManager regionManager;
-    private AllianceScoreboardManager allianceScoreboardManager;
-    private WorldGuardPlugin worldGuardPlugin;
-    private PlayerJsonData playerJsonData;
-    private int defaultRadius;
+    private static AlliancePlugin alliancePlugin;
+    private static RegionManager regionManager;
+    private static AllianceScoreboardManager allianceScoreboardManager;
+    private static WorldGuardPlugin worldGuardPlugin;
+    private static PlayerJsonData playerJsonData;
+    private static  int defaultRadius;
 
-    public BorderCache borderCache = new BorderCache();
-    public BalanceCache balanceCache = new BalanceCache();
-    public SelectorCache selectorCache = new SelectorCache();
+    public static BorderCache borderCache = new BorderCache();
+    public static BalanceCache balanceCache = new BalanceCache();
+    public static SelectorCache selectorCache = new SelectorCache();
 
-    private AllianceRegionManager(){
+    public static void init(){
         alliancePlugin = AlliancePlugin.getInstance();
         defaultRadius = alliancePlugin.radius;
         regionManager = alliancePlugin.defaultRegionManager;
-        allianceScoreboardManager = alliancePlugin.allianceScoreboardManager;
         worldGuardPlugin = alliancePlugin.worldGuardPlugin;
-        playerJsonData = alliancePlugin.playerJsonData;
-    }
-
-    public static AllianceRegionManager getInstance(){
-        if(inst == null){
-            inst = new AllianceRegionManager();
-        }
-        return inst;
+        playerJsonData = AlliancePlugin.playerJsonData;
     }
 
     // Main functionalities
 
-    public void createDefaultRegion(Player player, Block targetBlock) {
+    public static void createDefaultRegion(Player player, Block targetBlock) {
         var localPlayer = worldGuardPlugin.wrapPlayer(player);
         var playerData = playerJsonData.players.get(player.getName());
         //check user balance before creating region
@@ -86,18 +79,18 @@ public class AllianceRegionManager {
         playerData.balance -= claimCost;
         playerData.usedBalance += claimCost;
 
-        getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(alliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
+        getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(AlliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
 
         if (getRegionsInRegion(defaultRegion).size() == 0){
             regionManager.addRegion(defaultRegion);
-            allianceScoreboardManager.updateAllPlayerScores(player, EnumObjective.BALANCE);
+            AllianceScoreboardManager.updateAllPlayerScores(player, EnumObjective.BALANCE);
             player.sendMessage( "Created default region at " +  targetBlock.getX() + ", " + targetBlock.getY()+ ", " + targetBlock.getZ() + " radius: " + defaultRadius);
         }else{
             player.sendMessage("You can't create a claim that overlaps with another claim");
         }
     }
 
-    public void expandPlayerRegion(Player player, Block targetBlock) {
+    public static void expandPlayerRegion(Player player, Block targetBlock) {
         var cachedCorner = selectorCache.get(player);
         var _region = (ProtectedCuboidRegion) regionManager.getRegion(cachedCorner.regionId);
         var playerData = playerJsonData.players.get(player.getName());
@@ -144,15 +137,21 @@ public class AllianceRegionManager {
                 regionManager.removeRegion(_region.getId());
                 regionManager.addRegion(newRegion);
                 playerData.balance = newBalance;
-                allianceScoreboardManager.updatePlayerScore(player,EnumScore.BALANCE_CURRENT);
-                getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(alliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
+                AllianceScoreboardManager.updatePlayerScore(player,EnumScore.BALANCE_CURRENT);
+                getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(AlliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
 
                 AlliancePlugin.printThread("expandPlayerRegion");
 
-                //todo breakdown wall blocks caching into a method that gets all the wall blocks
-                //todo do not reset the blocks that intersect the set of newRegionBlocks and oldRegionBlocks
-                var alreadyHighlighted = borderCache.get(player).get(_region.getId());
-                borderCache.reset(player, alreadyHighlighted)
+                var _oldBlocksHighlighted = borderCache.get(player).get(_region.getId());
+                var oldHighlighted = new ArrayList<BlockVector3>();
+                _oldBlocksHighlighted.forEach(block -> {
+                    oldHighlighted.add(BlockVector3.at(block.getX(),block.getY(),block.getZ() ));
+                });
+                var newHighlighted = getBorderBlocks(newRegion, player, (highlightLocation, blockMaterial) -> { });
+
+                oldHighlighted.removeAll(newHighlighted);
+
+                borderCache.reset(player, oldHighlighted)
                     .thenApply(empty -> {
                         AlliancePlugin.printThread("thenApply");
                         highlightRegionsForPlayer(player);
@@ -171,7 +170,7 @@ public class AllianceRegionManager {
         selectorCache.reset(player);
     }
 
-    public void calculateNewRegionCost(Player player) {
+    public static void calculateNewRegionCost(Player player) {
         var targetBlock = player.getTargetBlock(5);
         var cachedCorner = selectorCache.get(player);
         if (cachedCorner == null || targetBlock == null){return;}
@@ -196,9 +195,9 @@ public class AllianceRegionManager {
         balanceCache.add(player, oldArea - newArea);
     }
 
-    public void highlightRegionsForPlayer(Player p) {
+    public static void highlightRegionsForPlayer(Player p) {
         //highlight edges of regions within a certain area
-        int h_radius = 6;
+        int h_radius = 20;
         Location targetLocation = p.getLocation();
 
         var corners = getCornersAsBlockVector(targetLocation,h_radius,targetLocation.getBlockY()+h_radius, targetLocation.getBlockY()-h_radius);
@@ -242,8 +241,34 @@ public class AllianceRegionManager {
         }
     }
 
-    public ArrayList<Block> getBorderBlocks(ProtectedRegion region, Player p, CallbackForEachBlock callbackForEachBlock){
-        var returnArray = new ArrayList<Block>();
+    public static boolean selectFirstCornerBlock(Player player, Block targetBlock, ArrayList<ProtectedRegion> ownedRegions) {
+        var clickedRegion = ownedRegions.get(0);
+        //check if block clicked is a corner block
+        var cornerType = determineCorner(clickedRegion, targetBlock);
+
+        if (cornerType != null){
+            var selectorCacheValues = new Corner(clickedRegion.getId(), targetBlock,cornerType);
+            selectorCache.add(player,selectorCacheValues);
+            player.sendMessage( "Corner " + selectorCacheValues.cornerTypes + " selected for expansion");
+            return true;
+        }
+        return false;
+    }
+
+    public static void promptUserToDelete(Player player, ProtectedRegion region) {
+        final TextComponent textComponent = Component.text("Do you want to delete this region? Click here to delete >>>")
+                .append(Component.text("Yes").clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND,"/claims delete "+region.getId()))
+                        .color(NamedTextColor.RED)
+                        .decoration(TextDecoration.BOLD,true)
+                )
+                ;
+        player.sendMessage(textComponent);
+
+    }
+
+    //Helper methods
+    public static ArrayList<BlockVector3> getBorderBlocks(ProtectedRegion region, Player p, CallbackForEachBlock callbackForEachBlock){
+        var returnArray = new ArrayList<BlockVector3>();
         var min = region.getMinimumPoint();
         var max = region.getMaximumPoint();
 
@@ -268,7 +293,7 @@ public class AllianceRegionManager {
                 if (_y == 0){break;}
             }
 
-            returnArray.add( p.getWorld().getBlockAt(highlightLocation));
+            returnArray.add(BukkitAdapter.asBlockVector(highlightLocation));
 
             callbackForEachBlock.block(highlightLocation,blockMaterial);
 
@@ -276,34 +301,7 @@ public class AllianceRegionManager {
         return returnArray;
     }
 
-    public boolean selectFirstCornerBlock(Player player, Block targetBlock, ArrayList<ProtectedRegion> ownedRegions) {
-        var clickedRegion = ownedRegions.get(0);
-        //check if block clicked is a corner block
-        var cornerType = determineCorner(clickedRegion, targetBlock);
-
-        if (cornerType != null){
-            var selectorCacheValues = new Corner(clickedRegion.getId(), targetBlock,cornerType);
-            selectorCache.add(player,selectorCacheValues);
-            player.sendMessage( "Corner " + selectorCacheValues.cornerTypes + " selected for expansion");
-            return true;
-        }
-        return false;
-    }
-
-    public void promptUserToDelete(Player player, ProtectedRegion region) {
-        final TextComponent textComponent = Component.text("Do you want to delete this region? Click here to delete >>>")
-                .append(Component.text("Yes").clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND,"/rg rem "+region.getId()))
-                        .color(NamedTextColor.RED)
-                        .decoration(TextDecoration.BOLD,true)
-                )
-                ;
-        player.sendMessage(textComponent);
-
-    }
-
-    //Helper methods
-
-    public ProtectedRegion generateDefaultRegion(Player player, LocalPlayer localPlayer, PlayerData playerData, Block targetBlock,int radius) {
+    public static ProtectedRegion generateDefaultRegion(Player player, LocalPlayer localPlayer, PlayerData playerData, Block targetBlock,int radius) {
         //target block is never null because of RIGHT_CLICK_BLOCK Action
         var targetLocation = targetBlock.getLocation();
 
@@ -318,7 +316,7 @@ public class AllianceRegionManager {
         return defaultRegion;
     }
 
-    public Tuple<BlockVector3, BlockVector3> getCornersAsBlockVector(Location targetLocation, int radius, int minY, int maxY){
+    public static Tuple<BlockVector3, BlockVector3> getCornersAsBlockVector(Location targetLocation, int radius, int minY, int maxY){
         Location corner1Location = new Location(targetLocation.getWorld(), targetLocation.getX() + radius, maxY, targetLocation.getZ() + radius );
         Location corner2Location = new Location(targetLocation.getWorld(), targetLocation.getX() - radius,minY, targetLocation.getZ() - radius );
 
@@ -328,7 +326,7 @@ public class AllianceRegionManager {
         return new Tuple<>(corner1Vector3, corner2Vector3);
     }
 
-    public CornerTypes determineCorner(ProtectedRegion region, Block selectedBlock){
+    public static CornerTypes determineCorner(ProtectedRegion region, Block selectedBlock){
         var min =  region.getMinimumPoint().toBlockVector2();
         var max =  region.getMaximumPoint().toBlockVector2();
         var selectedCorner = asBlockVector2(selectedBlock);
@@ -350,7 +348,7 @@ public class AllianceRegionManager {
         return null;
     }
 
-    public Tuple<BlockVector2, BlockVector2> getNewCorners(ProtectedRegion region, Block selectedBlock, Corner corner){
+    public static Tuple<BlockVector2, BlockVector2> getNewCorners(ProtectedRegion region, Block selectedBlock, Corner corner){
         var min =  region.getMinimumPoint().toBlockVector2();
         var max =  region.getMaximumPoint().toBlockVector2();
         var newCorner = asBlockVector2(selectedBlock);
@@ -378,11 +376,11 @@ public class AllianceRegionManager {
         return null;
     }
 
-    public BlockVector2 asBlockVector2(Block block){
+    public static BlockVector2 asBlockVector2(Block block){
         return BlockVector2.at(block.getX(),block.getZ());
     }
 
-    public Set<ProtectedRegion> getRegionsInRegion(ProtectedRegion region){
+    public static Set<ProtectedRegion> getRegionsInRegion(ProtectedRegion region){
         var regions = regionManager.getApplicableRegions(region).getRegions();
         regions.remove(region);
 
@@ -398,7 +396,7 @@ public class AllianceRegionManager {
      * @param oldRegion the region that we are going to copy
      * @return the regions in the region
      */
-    public Set<ProtectedRegion> getRegionsInRegion(ProtectedRegion region, ProtectedRegion oldRegion){
+    public static Set<ProtectedRegion> getRegionsInRegion(ProtectedRegion region, ProtectedRegion oldRegion){
 
         //oldRegionis used, in case we have an old region and still want to check for other regions
         //but excluding that oldRegion
@@ -409,14 +407,12 @@ public class AllianceRegionManager {
         return regions;
     }
 
-
-
     /**
      * Calculate sides for a region
      * @param region the region we want to calculate
      * @return HorizontalSide, VerticalSide
      */
-    public Tuple<Integer,Integer> calculateSidesLength(ProtectedRegion region){
+    public static Tuple<Integer,Integer> calculateSidesLength(ProtectedRegion region){
         //calculate if new region is smaller than the allowed size
         var newMax = region.getMaximumPoint();
         var newMin = region.getMinimumPoint();

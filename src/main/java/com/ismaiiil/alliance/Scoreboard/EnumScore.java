@@ -53,11 +53,10 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
             PlayerData data = AlliancePlugin.getInstance().playerJsonData.getPlayerData(player.getName());
             String tempString = "";
 
-            AllianceRegionManager arm = AllianceRegionManager.getInstance();
             Integer tempBalanceChange;
 
-            if (arm.balanceCache.get(player) != null){
-                tempBalanceChange = arm.balanceCache.get(player);
+            if (AllianceRegionManager.balanceCache.get(player) != null){
+                tempBalanceChange = AllianceRegionManager.balanceCache.get(player);
             }else {
                 tempBalanceChange = 0;
             }
@@ -80,7 +79,7 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
             false) {
         @Override
         public void updateLinkedValue(Player player) {
-            PlayerData data = AlliancePlugin.getInstance().playerJsonData.getPlayerData(player.getName());
+            PlayerData data = AlliancePlugin.playerJsonData.getPlayerData(player.getName());
             changeScoreValue(this,player,String.valueOf(data.usedBalance));
         }
     },
@@ -200,7 +199,7 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
     }
 
     private static void changeScoreValue(EnumScore enumScore,Player player, String value){
-        AllianceScoreboardManager.getInstance().getAOBjectiveByName(player.getName()).changeScoreValue(enumScore,value);
+        AllianceScoreboardManager.getAOBjectiveByName(player.getName()).changeScoreValue(enumScore,value);
     }
 
 

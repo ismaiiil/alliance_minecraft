@@ -18,34 +18,26 @@ import java.util.logging.Level;
 
 public class AllianceScoreboardManager {
 
-    private static AllianceScoreboardManager inst;
-    private final ScoreboardManager bukkitManager;
+    private static ScoreboardManager bukkitManager;
 
     private final static String DUMMY = "dummy";
 
     //player name - Scoreboard
-    private HashMap<String, Scoreboard> playerScoreboards = new HashMap<>();
+    private static HashMap<String, Scoreboard> playerScoreboards = new HashMap<>();
     //player name - AllianceObjective
-    private HashMap<String, AllianceObjective> playerObjectives = new HashMap<>();
+    private static HashMap<String, AllianceObjective> playerObjectives = new HashMap<>();
 
 
-    private AllianceScoreboardManager() {
+    public static void init() {
         bukkitManager = Bukkit.getScoreboardManager();
 
     }
 
-    public static AllianceScoreboardManager getInstance() {
-        if (inst == null){
-            inst = new AllianceScoreboardManager();
-        }
-        return inst;
-    }
-
-    public AllianceObjective getAOBjectiveByName(String playerName){
+    public static AllianceObjective getAOBjectiveByName(String playerName){
         return playerObjectives.get(playerName);
     }
 
-    public Scoreboard getPlayerScoreboard(Player player){
+    public static Scoreboard getPlayerScoreboard(Player player){
         var _obj = playerScoreboards.get(player.getName());
         if (_obj != null) {
             return _obj;
@@ -55,7 +47,7 @@ public class AllianceScoreboardManager {
         return null;
     }
 
-    public void setPlayerScoreboard(Player player){
+    public static void setPlayerScoreboard(Player player){
         var playerScore = getPlayerScoreboard(player);
 
         if (playerScore == null){
@@ -77,11 +69,11 @@ public class AllianceScoreboardManager {
 
     }
 
-    public AllianceObjective getPlayerObjectives(Player player){
+    public static AllianceObjective getPlayerObjectives(Player player){
         return playerObjectives.get(player.getName()) ;
     }
 
-    public void updateAllPlayerScores(Player player, EnumObjective enumObjective){
+    public static void updateAllPlayerScores(Player player, EnumObjective enumObjective){
         var _ao = playerObjectives.get(player.getName());
         EnumScore previous = null;
         if(_ao.getActiveObjective() == enumObjective){
@@ -94,7 +86,7 @@ public class AllianceScoreboardManager {
 
     }
 
-    public void updatePlayerScore(Player player, EnumScore enumScore){
+    public static void updatePlayerScore(Player player, EnumScore enumScore){
         var _ao = playerObjectives.get(player.getName());
         if(_ao.getActiveObjective() == enumScore.getEnumObjective()){
             enumScore.updateLinkedValue(player);
@@ -102,30 +94,26 @@ public class AllianceScoreboardManager {
 
     }
 
-    public void setPlayerSidebar(Player player,EnumObjective enumObjective){
+    public static void setPlayerSidebar(Player player,EnumObjective enumObjective){
         var _ao = playerObjectives.get(player.getName());
         _ao.changeSideBarObjective(enumObjective);
     }
 
-
-
-    public void resetPlayerScoreboard(Player player){
+    public static void resetPlayerScoreboard(Player player){
         player.setScoreboard(bukkitManager.getNewScoreboard());
     }
 
-    //TODO REMOVE THIS LATER
-    public void deletePlayerScoreboard(Player player){
+    public static void deletePlayerScoreboard(Player player){
         resetPlayerScoreboard(player);
         playerScoreboards.remove(player.getName());
         playerObjectives.remove(player.getName());
     }
 
-
-    private Objective addDummyObjective(Scoreboard thePlayerScoreboard, EnumObjective myObjective){
+    private static Objective addDummyObjective(Scoreboard thePlayerScoreboard, EnumObjective myObjective){
         return thePlayerScoreboard.registerNewObjective(myObjective.getTitle(), DUMMY, createObjectiveTextComponent(myObjective));
     }
 
-    private TextComponent createObjectiveTextComponent(EnumObjective myObjective){
+    private static TextComponent createObjectiveTextComponent(EnumObjective myObjective){
         switch (myObjective){
             case BALANCE:
                 return Component.text(myObjective.getTitle())

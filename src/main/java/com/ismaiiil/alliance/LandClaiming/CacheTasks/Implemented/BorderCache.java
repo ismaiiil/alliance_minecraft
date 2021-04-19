@@ -3,6 +3,7 @@ package com.ismaiiil.alliance.LandClaiming.CacheTasks.Implemented;
 import com.ismaiiil.alliance.AlliancePlugin;
 import com.ismaiiil.alliance.LandClaiming.CacheTasks.Abstract.PlayerCache;
 import com.ismaiiil.alliance.LandClaiming.CacheTasks.Abstract.PlayerTasks;
+import com.sk89q.worldedit.math.BlockVector3;
 import lombok.var;
 import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
@@ -35,7 +36,9 @@ public class BorderCache extends PlayerCache<HashMap<String, ArrayList <Block>> 
         return null;
     }
 
-    public CompletableFuture<Void> reset(Player player, ArrayList<Block> newRegion) {
+    //resets only the blocks specified in the blocksToReset variable (useful when expanding region, we dnt want to reset
+    //already highlighted blocks
+    public CompletableFuture<Void> reset(Player player, ArrayList<BlockVector3> blocksToReset) {
         AlliancePlugin.printThread("start of reset");
         var uuid = player.getUniqueId();
         if (cache.containsKey(uuid)) {
@@ -45,7 +48,8 @@ public class BorderCache extends PlayerCache<HashMap<String, ArrayList <Block>> 
                 AlliancePlugin.printThread("in completable Future");
                 for (var list : tempList.values()){
                     for (var block: list){
-                        if (!newRegion.contains(block)){
+                        var tempV3 = BlockVector3.at(block.getX(),block.getY(),block.getZ());
+                        if (blocksToReset.contains(tempV3)){
                             block.getState().update();
                         }
                     }

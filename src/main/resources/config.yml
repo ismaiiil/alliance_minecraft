@@ -3,7 +3,7 @@ performance:
   max-threads: 10
 defaults:
   radius: 5
-  starting-balance: 242
+  starting-balance: 350
 objectives-data:
   balance:
     item: STICK

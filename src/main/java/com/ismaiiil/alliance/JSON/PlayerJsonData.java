@@ -27,13 +27,14 @@ public class PlayerJsonData implements Serializable {
     }
 
     public PlayerData getPlayerData(String playerName){
-        PlayerData _be = players.get(playerName);
-        if (_be != null) {
-            return _be;
+
+        if (players.containsKey(playerName)){
+            return players.get(playerName);
         }else{
             AlliancePlugin.getInstance().getLogger().log(Level.SEVERE, "The player " + playerName + " isn't in the balance.json file");
+            return null;
         }
-        return null;
+
     }
 
 

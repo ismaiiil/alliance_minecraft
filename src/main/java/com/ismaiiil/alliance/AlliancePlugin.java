@@ -1,6 +1,7 @@
 package com.ismaiiil.alliance;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.ismaiiil.alliance.CommandPackage.ACommandManager;
 import com.ismaiiil.alliance.LandClaiming.AllianceRegionManager;
 import com.ismaiiil.alliance.JSON.PlayerJsonData;
 import com.ismaiiil.alliance.JSON.PlayerData;
@@ -26,6 +27,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.*;
@@ -40,24 +42,21 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public RegionContainer defaultRegionContainer;
     public WorldGuardPlugin worldGuardPlugin;
 
-    public AllianceRegionManager arm;
 
     public int radius;
     int defaultBalance;
 
     private static AlliancePlugin inst;
 
-    public PlayerJsonData playerJsonData;
+    public static PlayerJsonData playerJsonData;
     public File playerJsonFile;
 
-    public AllianceScoreboardManager allianceScoreboardManager;
     EnumObjective[] enumObjectives;
     public final long SERVER_TICK = 20L;
 
     private int minPoolSize;
     private int maxPoolSize;
     public static ExecutorService pool;
-
 
     public AlliancePlugin(){
         inst = this;
@@ -68,9 +67,12 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     }
 
     @Override
-    public void onEnable() {
-        // Plugin startup logic
+    public void onLoad() {
+        ACommandManager.init();
+    }
 
+    @Override
+    public void onEnable() {
 
         // TODO find better way loading up enums
         enumObjectives = EnumObjective.myValues();
@@ -110,14 +112,11 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
             defaultRegionContainer = defaultWorldFactory.worldRegionContainer;
         }
 
+        AllianceRegionManager.init();
+        AllianceScoreboardManager.init();
+
         //setting default worldGuard stuff
         setGlobalFlags();
-
-        //creating scoreboard
-        allianceScoreboardManager = AllianceScoreboardManager.getInstance();
-
-        //periodically create region (do not register it) and chek regions that are his and highlight them
-        arm = AllianceRegionManager.getInstance();
 
 //        pool = new ThreadPoolExecutor(minPoolSize, maxPoolSize, 1000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(maxPoolSize));
         pool = new ThreadPoolExecutor(minPoolSize, maxPoolSize, 1000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(maxPoolSize),
@@ -125,12 +124,6 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                         .setNameFormat("ALLIANCE POOL-%d")
                         .setDaemon(false)
                         .build());
-
-        //TODO optimise highlighting to not highlight already highlighted blocks
-        //TODO fix highlight flicker
-        //TODO implement random tp into alliance
-        //TODO optimise event loops
-
 
     }
 
@@ -142,10 +135,8 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
             playerJsonData.createPlayerData(player.getName(), defaultBalance);
         }
 
-        allianceScoreboardManager.setPlayerScoreboard(player);
+        AllianceScoreboardManager.setPlayerScoreboard(player);
     }
-
-
 
     @EventHandler
     public void onPlayerHeld(PlayerItemHeldEvent event) {
@@ -160,49 +151,46 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
         if(newItem.getType() != EnumObjective.BALANCE.getScoreboardItem()){
 
-            arm.borderCache.tasks.stop(p);
-            arm.borderCache.reset(p);
+            AllianceRegionManager.borderCache.tasks.stop(p);
+            AllianceRegionManager.borderCache.reset(p);
 
-            arm.selectorCache.reset(p);
+            AllianceRegionManager.selectorCache.reset(p);
 
-            arm.balanceCache.tasks.stop(p);
-            arm.balanceCache.reset(p);
+            AllianceRegionManager.balanceCache.tasks.stop(p);
+            AllianceRegionManager.balanceCache.reset(p);
 
         }
         if (newItem.getType() == EnumObjective.BALANCE.getScoreboardItem()){
 
-            allianceScoreboardManager.setPlayerScoreboard(p);
-            updatePlayerScoreboard(p,EnumObjective.BALANCE);
+            AllianceScoreboardManager.setPlayerScoreboard(p);
+            setAndUpdatePlayerScoreboard(p,EnumObjective.BALANCE);
 
-            arm.borderCache.tasks.stop(p);
-            arm.borderCache.tasks.add(p,() -> {
+            AllianceRegionManager.borderCache.tasks.stop(p);
+            AllianceRegionManager.borderCache.tasks.add(p,() -> {
                 printThread("scheduleAsync");
-                arm.highlightRegionsForPlayer(p);
+                AllianceRegionManager.highlightRegionsForPlayer(p);
             }, 0L, SERVER_TICK * 2 );
 
 
         }else if(newItem.getType() == EnumObjective.WAR.getScoreboardItem()){
-            allianceScoreboardManager.setPlayerScoreboard(p);
-            updatePlayerScoreboard(p,EnumObjective.WAR);
+            AllianceScoreboardManager.setPlayerScoreboard(p);
+            setAndUpdatePlayerScoreboard(p,EnumObjective.WAR);
 
         }else{
-            allianceScoreboardManager.resetPlayerScoreboard(p);
+            AllianceScoreboardManager.resetPlayerScoreboard(p);
 
         }
     }
-
-
-
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         var p = event.getPlayer();
 
-        arm.borderCache.tasks.stop(p);
-        arm.selectorCache.reset(p);
-        arm.balanceCache.tasks.stop(p);
-        arm.balanceCache.reset(p);
-        allianceScoreboardManager.deletePlayerScoreboard(p);
+        AllianceRegionManager.borderCache.tasks.stop(p);
+        AllianceRegionManager.selectorCache.reset(p);
+        AllianceRegionManager.balanceCache.tasks.stop(p);
+        AllianceRegionManager.balanceCache.reset(p);
+        AllianceScoreboardManager.deletePlayerScoreboard(p);
 
         //TODO remove this later
 //        var regs =  defaultRegionManager.getRegions();
@@ -220,7 +208,6 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         var action = event.getAction();
         var item = event.getItem();
 
-        PlayerData playerData;
         //check if player has a balance in balance.json else create a new entry for him
         if (!playerJsonData.players.containsKey(player.getName())){
              playerJsonData.createPlayerData(player.getName(), defaultBalance);
@@ -231,7 +218,12 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
                 var targetBlock = event.getClickedBlock();
                 //get regions at clicked block
-                var regionsAtBlock = defaultRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(targetBlock.getLocation())).getRegions();
+                Set<ProtectedRegion> regionsAtBlock;
+                if (targetBlock != null) {
+                    regionsAtBlock = defaultRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(targetBlock.getLocation())).getRegions();
+                }else {
+                    return;
+                }
                 ArrayList<ProtectedRegion> ownedRegionsAtBlock = regionsAtBlock.stream().filter(region -> region.isOwner(localPlayer)).collect(toCollection(ArrayList::new));
 
                 for (var region: regionsAtBlock) {
@@ -240,62 +232,46 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
                     }
                 }
 
-                if ( arm.selectorCache.get(player) == null){
+                if ( AllianceRegionManager.selectorCache.get(player) == null){
                     if (ownedRegionsAtBlock.size() == 0){
-                        arm.createDefaultRegion(player, targetBlock);
+                        AllianceRegionManager.createDefaultRegion(player, targetBlock);
                     }else{
-                        var hasSucceeded = arm.selectFirstCornerBlock(player, targetBlock, ownedRegionsAtBlock);
+                        var hasSucceeded = AllianceRegionManager.selectFirstCornerBlock(player, targetBlock, ownedRegionsAtBlock);
                         if (hasSucceeded){
-                            arm.balanceCache.tasks.add(player, new BukkitRunnable() {
+                            AllianceRegionManager.balanceCache.tasks.add(player,
+                            new BukkitRunnable() {
                                 @Override
                                 public void run() {
-                                    arm.calculateNewRegionCost(player);
+                                    AllianceRegionManager.calculateNewRegionCost(player);
                                 }
                             }, 0, SERVER_TICK/10);
 
                         }else{
-                            arm.promptUserToDelete(player, ownedRegionsAtBlock.get(0));
+                            AllianceRegionManager.promptUserToDelete(player, ownedRegionsAtBlock.get(0));
                         }
                     }
                 }else{
 
                     printThread("mainThread  ");
 
-                    arm.expandPlayerRegion(player, targetBlock);
+                    AllianceRegionManager.expandPlayerRegion(player, targetBlock);
 
-                    arm.balanceCache.tasks.stop(player);
-                    arm.balanceCache.reset(player);
+                    AllianceRegionManager.balanceCache.tasks.stop(player);
+                    AllianceRegionManager.balanceCache.reset(player);
                 }
 
             }
         }
     }
 
-    @EventHandler
-    public void onPlayerCommand(PlayerCommandPreprocessEvent e){
-        var theCommandRan = e.getMessage();
 
-        if (theCommandRan.contains("/rg rem")){
-            arm.borderCache.reset(e.getPlayer()).thenApply(
-                    bool ->{
-                        arm.highlightRegionsForPlayer(e.getPlayer());
-                        allianceScoreboardManager.updateAllPlayerScores(e.getPlayer(),EnumObjective.BALANCE);
-                        return null;
-                    });
-
-        }
-    }
-
-
-
-    private void updatePlayerScoreboard(Player player, EnumObjective enumObjective){
+    private void setAndUpdatePlayerScoreboard(Player player, EnumObjective enumObjective){
         if (enumObjective != null){
-            allianceScoreboardManager.setPlayerSidebar(player, enumObjective);
-            allianceScoreboardManager.updateAllPlayerScores(player,enumObjective);
+            AllianceScoreboardManager.setPlayerSidebar(player, enumObjective);
+            AllianceScoreboardManager.updateAllPlayerScores(player,enumObjective);
         }
 
     }
-
 
     private void setGlobalFlags(){
         if(defaultWorldFactory != null){
@@ -316,6 +292,9 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         //System.out.println("Current THREAD: " + Thread.currentThread().getName() + " running inside " + s);
     }
 
+    public static PlayerData getPlayerData(Player player){
+        return playerJsonData.getPlayerData(player.getName());
+    }
 
     @Override
     public void onDisable() {
