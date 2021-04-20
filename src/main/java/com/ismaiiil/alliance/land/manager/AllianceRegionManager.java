@@ -1,12 +1,15 @@
-package com.ismaiiil.alliance.land;
+package com.ismaiiil.alliance.land.manager;
 
 import com.ismaiiil.alliance.AlliancePlugin;
 import com.ismaiiil.alliance.json.ConfigLoader;
 import com.ismaiiil.alliance.json.PlayerData;
 import com.ismaiiil.alliance.json.PlayerJsonData;
+import com.ismaiiil.alliance.land.util.CallbackForEachBlock;
 import com.ismaiiil.alliance.land.cache.implemented.BalanceCache;
 import com.ismaiiil.alliance.land.cache.implemented.BorderCache;
 import com.ismaiiil.alliance.land.cache.implemented.SelectorCache;
+import com.ismaiiil.alliance.land.corner.Corner;
+import com.ismaiiil.alliance.land.corner.CornerTypes;
 import com.ismaiiil.alliance.scoreboard.AllianceScoreboardManager;
 import com.ismaiiil.alliance.scoreboard.EnumObjective;
 import com.ismaiiil.alliance.scoreboard.EnumScore;
@@ -35,7 +38,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 
-import static com.ismaiiil.alliance.land.CornerTypes.*;
+import static com.ismaiiil.alliance.land.corner.CornerTypes.*;
 import static com.sk89q.worldguard.protection.flags.StateFlag.State.DENY;
 import static org.bukkit.Bukkit.getServer;
 
@@ -259,6 +262,17 @@ public class AllianceRegionManager {
 
     }
 
+    public static void promptUserToCreate(Player player, Block block){
+        final TextComponent textComponent = Component.text("Do you want to create a region? Click here to create >>>")
+                .append(Component.text("Yes")
+                        .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND,String.format("/claims create %s %s %s", block.getX(), block.getY(),block.getZ() )))
+                        .color(NamedTextColor.GREEN)
+                        .decoration(TextDecoration.BOLD,true)
+                )
+                ;
+        player.sendMessage(textComponent);
+    }
+
     //Helper methods
     public static ArrayList<BlockVector3> getBorderBlocks(ProtectedCuboidRegion region, Player p, CallbackForEachBlock callbackForEachBlock){
         var returnArray = new ArrayList<BlockVector3>();
@@ -283,7 +297,7 @@ public class AllianceRegionManager {
                 _y -= 1;
                 highlightLocation = new Location(p.getWorld(), block.getBlockX(),_y,block.getBlockZ() );
                 blockMaterial = p.getWorld().getBlockAt(highlightLocation).getBlockData().getMaterial();
-                if (_y == 0){break;}
+                if (_y == 0 || _y == p.getWorld().getMaxHeight()){break;}
             }
 
             returnArray.add(BukkitAdapter.asBlockVector(highlightLocation));
@@ -303,8 +317,6 @@ public class AllianceRegionManager {
         var defaultRegion = new ProtectedCuboidRegion("region_"+ player.getName()+ "_" + playerData.regionsCreated,corners._1, corners._2);
 
         defaultRegion.getOwners().addPlayer(localPlayer);
-        defaultRegion.setFlag(Flags.USE, DENY);
-        defaultRegion.setFlag(Flags.TRAMPLE_BLOCKS, DENY);
         defaultRegion.setFlag(Flags.FIRE_SPREAD, DENY);
         return defaultRegion;
     }

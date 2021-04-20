@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.land;
+package com.ismaiiil.alliance.land.util;
 
 import org.bukkit.Location;
 import org.bukkit.Material;

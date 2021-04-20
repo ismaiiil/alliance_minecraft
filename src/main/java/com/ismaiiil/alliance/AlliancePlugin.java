@@ -2,10 +2,11 @@ package com.ismaiiil.alliance;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ismaiiil.alliance.commands.ACommandManager;
-import com.ismaiiil.alliance.land.AllianceRegionManager;
+import com.ismaiiil.alliance.land.manager.AllianceRegionManager;
 import com.ismaiiil.alliance.json.PlayerJsonData;
 import com.ismaiiil.alliance.json.PlayerData;
 import com.ismaiiil.alliance.json.ConfigLoader;
+import com.ismaiiil.alliance.land.mining.EnumBlockReward;
 import com.ismaiiil.alliance.scoreboard.AllianceScoreboardManager;
 import com.ismaiiil.alliance.scoreboard.EnumObjective;
 import com.ismaiiil.alliance.scoreboard.EnumScore;
@@ -18,12 +19,16 @@ import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.*;
 import lombok.var;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -42,6 +47,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public RegionContainer defaultRegionContainer;
     public WorldGuardPlugin worldGuardPlugin;
 
+    public final String placeMetaData = "PLAYER_PLACED";
 
     public int radius;
     int defaultBalance;
@@ -206,6 +212,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         var action = event.getAction();
         var item = event.getItem();
 
+
         //check if player has a balance in balance.json else create a new entry for him
         if (!playerJsonData.players.containsKey(player.getName())){
              playerJsonData.createPlayerData(player.getName(), defaultBalance);
@@ -213,7 +220,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
         if ( action.equals( Action.RIGHT_CLICK_BLOCK ) ) {
             if ( item != null && item.getType() == EnumObjective.BALANCE.getScoreboardItem() ) {
-
+                event.setCancelled(true);
                 var targetBlock = event.getClickedBlock();
                 //get regions at clicked block
                 Set<ProtectedRegion> regionsAtBlock;
@@ -232,7 +239,8 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
                 if ( AllianceRegionManager.selectorCache.get(player) == null){
                     if (ownedRegionsAtBlock.size() == 0){
-                        AllianceRegionManager.createDefaultRegion(player, targetBlock);
+                        AllianceRegionManager.promptUserToCreate(player,targetBlock);
+
                     }else{
                         var hasSucceeded = AllianceRegionManager.selectFirstCornerBlock(player, targetBlock, ownedRegionsAtBlock);
                         if (hasSucceeded){
@@ -262,6 +270,33 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         }
     }
 
+    @EventHandler
+    public void onPlayerBreakBlock(BlockBreakEvent event){
+        if (!event.isCancelled() &&
+            !event.getBlock().hasMetadata(placeMetaData) &&
+            EnumBlockReward.isValued(event.getBlock().getBlockData().getMaterial())
+        )
+        {
+            var player = event.getPlayer();
+            var playerData = playerJsonData.getPlayerData(player.getName());
+
+            var material = event.getBlock().getBlockData().getMaterial();
+            var value = EnumBlockReward.getMatValue(material);
+
+            playerData.balance += value;
+            AllianceScoreboardManager.updatePlayerScore(player, EnumScore.BALANCE_CURRENT);
+
+        }
+    }
+
+    @EventHandler
+    public void onPlayerPlaceBlock(BlockPlaceEvent event){
+        if (!event.isCancelled() &&
+            EnumBlockReward.isValued(event.getBlock().getBlockData().getMaterial())
+            ){
+            event.getBlock().setMetadata(placeMetaData, new FixedMetadataValue(this, true));
+        }
+    }
 
     private void setAndUpdatePlayerScoreboard(Player player, EnumObjective enumObjective){
         if (enumObjective != null){

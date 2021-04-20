@@ -2,7 +2,7 @@ package com.ismaiiil.alliance.scoreboard;
 
 import com.ismaiiil.alliance.AlliancePlugin;
 import com.ismaiiil.alliance.json.PlayerData;
-import com.ismaiiil.alliance.land.AllianceRegionManager;
+import com.ismaiiil.alliance.land.manager.AllianceRegionManager;
 import com.ismaiiil.alliance.scoreboard.exceptions.EnumScoreDoesNotMatchObjective;
 import com.ismaiiil.alliance.scoreboard.exceptions.MaxScoreboardLineCountExceeded;
 import lombok.Getter;
@@ -66,7 +66,7 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
             }else if(tempBalanceChange < 0){
                 tempString += ChatColor.RED + "" + tempBalanceChange;
             }
-            changeScoreValue(this,player, data.balance + tempString);
+            changeScoreValue(this,player,  String.format("%.4f",data.balance) + tempString);
         }
     },
 

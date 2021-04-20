@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.land;
+package com.ismaiiil.alliance.land.corner;
 
 
 import com.sk89q.worldedit.math.BlockVector2;

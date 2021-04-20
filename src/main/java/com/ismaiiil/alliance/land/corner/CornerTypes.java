@@ -1,4 +1,4 @@
-package com.ismaiiil.alliance.land;
+package com.ismaiiil.alliance.land.corner;
 
 
 public enum CornerTypes {

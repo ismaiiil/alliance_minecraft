@@ -7,6 +7,7 @@ import dev.jorel.commandapi.annotations.Command;
 import dev.jorel.commandapi.annotations.Default;
 import dev.jorel.commandapi.annotations.Permission;
 import dev.jorel.commandapi.annotations.Subcommand;
+import dev.jorel.commandapi.annotations.arguments.ADoubleArgument;
 import dev.jorel.commandapi.annotations.arguments.AIntegerArgument;
 import dev.jorel.commandapi.annotations.arguments.APlayerArgument;
 import lombok.var;
@@ -38,7 +39,7 @@ public class BlockBalanceCommands {
 
     @Subcommand("add")
     @Permission("alliance.blocks.add")
-    public static void blocksAdd(CommandSender sender,@APlayerArgument Player player, @AIntegerArgument Integer amount){
+    public static void blocksAdd(CommandSender sender,@APlayerArgument Player player, @ADoubleArgument Double amount){
         //get player score in PlayerJsonData
         var playerData = AlliancePlugin.getPlayerData(player);
         playerData.balance += amount;
