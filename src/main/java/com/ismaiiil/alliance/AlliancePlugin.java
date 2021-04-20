@@ -1,16 +1,16 @@
 package com.ismaiiil.alliance;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.ismaiiil.alliance.CommandPackage.ACommandManager;
-import com.ismaiiil.alliance.LandClaiming.AllianceRegionManager;
-import com.ismaiiil.alliance.JSON.PlayerJsonData;
-import com.ismaiiil.alliance.JSON.PlayerData;
-import com.ismaiiil.alliance.JSON.ConfigLoader;
-import com.ismaiiil.alliance.Scoreboard.AllianceScoreboardManager;
-import com.ismaiiil.alliance.Scoreboard.EnumObjective;
-import com.ismaiiil.alliance.Scoreboard.EnumScore;
-import com.ismaiiil.alliance.WorldGuardInstances.RegionsInstance;
-import com.ismaiiil.alliance.WorldGuardInstances.WorldHelperFactory;
+import com.ismaiiil.alliance.commands.ACommandManager;
+import com.ismaiiil.alliance.land.AllianceRegionManager;
+import com.ismaiiil.alliance.json.PlayerJsonData;
+import com.ismaiiil.alliance.json.PlayerData;
+import com.ismaiiil.alliance.json.ConfigLoader;
+import com.ismaiiil.alliance.scoreboard.AllianceScoreboardManager;
+import com.ismaiiil.alliance.scoreboard.EnumObjective;
+import com.ismaiiil.alliance.scoreboard.EnumScore;
+import com.ismaiiil.alliance.worldguardinstance.RegionsInstance;
+import com.ismaiiil.alliance.worldguardinstance.WorldHelperFactory;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.flags.Flags;
@@ -54,8 +54,6 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     EnumObjective[] enumObjectives;
     public final long SERVER_TICK = 20L;
 
-    private int minPoolSize;
-    private int maxPoolSize;
     public static ExecutorService pool;
 
     public AlliancePlugin(){
@@ -83,8 +81,8 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         radius = getConfig().getInt("defaults.radius");
         defaultBalance = getConfig().getInt("defaults.starting-balance");
 
-        minPoolSize = getConfig().getInt("performance.min-threads");
-        maxPoolSize = getConfig().getInt("performance.max-threads");
+        int minPoolSize = getConfig().getInt("performance.min-threads");
+        int maxPoolSize = getConfig().getInt("performance.max-threads");
 
 
         for (EnumObjective _eo: enumObjectives) {
