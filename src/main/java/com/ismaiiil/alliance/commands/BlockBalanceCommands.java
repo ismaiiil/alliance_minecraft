@@ -8,27 +8,30 @@ import dev.jorel.commandapi.annotations.Default;
 import dev.jorel.commandapi.annotations.Permission;
 import dev.jorel.commandapi.annotations.Subcommand;
 import dev.jorel.commandapi.annotations.arguments.ADoubleArgument;
-import dev.jorel.commandapi.annotations.arguments.AIntegerArgument;
 import dev.jorel.commandapi.annotations.arguments.APlayerArgument;
 import lombok.var;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import static com.ismaiiil.alliance.commands.AllCommandsConstants.*;
+import static com.ismaiiil.alliance.commands.ACommandManager.*;
 
-
-@Command("blocks")
-@Permission("alliance.blocks.basic")
+@Command(BLOCKS)
+@Permission(BlockBalanceCommands.PERM_BASIC)
 public class BlockBalanceCommands {
-
+    public static final String PERM_BASIC = "alliance.blocks.basic";
+    public static final String PERM_INFO = "alliance.blocks.info";
+    public static final String PERM_ADD = "alliance.blocks.add";
     @Default
+    @Subcommand("help")
     public static void blocks(CommandSender sender){
-        sender.sendMessage("--- blocks help ---");
-        sender.sendMessage("/blocks - Show this help");
-        sender.sendMessage("/blocks <player> - displays the amount of blocks <player> has");
-        sender.sendMessage("/blocks add <player> <amount> - add <amount> blocks to <player>'s balance");
+        sender.sendMessage(ACommandManager.getHelpHeader("blocks"));
+        sendHelpIfPermission(sender,PERM_BASIC, "/blocks help - Show this help");
+        sendHelpIfPermission(sender,PERM_INFO, "/blocks <player> - displays the amount of blocks <player> has");
+        sendHelpIfPermission(sender,PERM_ADD, "/blocks add <player> <amount> - add <amount> blocks to <player>'s balance");
     }
 
     @Default
-    @Permission("alliance.blocks.info")
+    @Permission(PERM_INFO)
     public static void blocks(CommandSender sender,@APlayerArgument Player player){
         //get player score in PlayerJsonData
         var playerData = AlliancePlugin.getPlayerData(player);
@@ -38,7 +41,7 @@ public class BlockBalanceCommands {
     }
 
     @Subcommand("add")
-    @Permission("alliance.blocks.add")
+    @Permission(PERM_ADD)
     public static void blocksAdd(CommandSender sender,@APlayerArgument Player player, @ADoubleArgument Double amount){
         //get player score in PlayerJsonData
         var playerData = AlliancePlugin.getPlayerData(player);

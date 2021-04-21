@@ -19,17 +19,22 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import static com.ismaiiil.alliance.commands.AllCommandsConstants.*;
+import static com.ismaiiil.alliance.commands.ACommandManager.*;
 
-@Command("claims")
-@Permission("alliance.claims.basic")
+@Command(CLAIMS)
+@Permission(ClaimCommands.PERM_BASIC)
 public class ClaimCommands {
+    public static final String PERM_BASIC = "alliance.claims.basic";
+
 
     @Default
-    public static void claims(CommandSender sender){
-        sender.sendMessage("--- claims help ---");
-        sender.sendMessage("/claims - Show this help");
-        sender.sendMessage("/claims list - displays all the regions you claimed");
-        sender.sendMessage("/claims delete <regionName> - delete the region <regionName>");
+    @Subcommand("help")
+    public static void help(CommandSender sender){
+        sender.sendMessage(getHelpHeader(CLAIMS));
+        sendHelpIfPermission(sender,PERM_BASIC, "/claims help- Show this help");
+        sendHelpIfPermission(sender,PERM_BASIC, "/claims list - displays all the regions you claimed");
+        sendHelpIfPermission(sender,PERM_BASIC, "/claims delete <regionName> - delete the region <regionName>");
     }
 
     @Subcommand("create")

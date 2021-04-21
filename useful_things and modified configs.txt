@@ -1,12 +1,9 @@
 regions.high-frequency-flags: true
 
 
-Worldguard permissions:
+spigot.yml
 
-worldguard.region.remove.own.*:
-  default: true
-
-
+  unknown-command: Unknown command. Type "/help" for help or /<plugin> help, use /plugins to get plugin names.
 
 useful commands
   /fill ~ ~-10 ~ ~30 ~10 ~30 air replace minecraft:grass
