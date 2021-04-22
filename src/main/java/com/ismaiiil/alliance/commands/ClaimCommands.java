@@ -1,13 +1,12 @@
 package com.ismaiiil.alliance.commands;
 
 import com.ismaiiil.alliance.AlliancePlugin;
-import com.ismaiiil.alliance.land.manager.AllianceRegionManager;
-import com.ismaiiil.alliance.scoreboard.AllianceScoreboardManager;
-import com.ismaiiil.alliance.scoreboard.EnumObjective;
+import com.ismaiiil.alliance.features.claims.manager.AllianceRegionManager;
+import com.ismaiiil.alliance.features.scoreboard.AllianceScoreboardManager;
+import com.ismaiiil.alliance.features.scoreboard.EnumObjective;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import dev.jorel.commandapi.annotations.Command;
-import dev.jorel.commandapi.annotations.Default;
 import dev.jorel.commandapi.annotations.Permission;
 import dev.jorel.commandapi.annotations.Subcommand;
 import dev.jorel.commandapi.annotations.arguments.*;
@@ -27,8 +26,6 @@ import static com.ismaiiil.alliance.commands.ACommandManager.*;
 public class ClaimCommands {
     public static final String PERM_BASIC = "alliance.claims.basic";
 
-
-    @Default
     @Subcommand("help")
     public static void help(CommandSender sender){
         sender.sendMessage(getHelpHeader(CLAIMS));

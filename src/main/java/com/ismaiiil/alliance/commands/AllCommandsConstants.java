@@ -20,6 +20,8 @@ public class AllCommandsConstants {
     public static final String DESC_CLAIMS = " ---- Claim commands, manage your territory";
     public static final String BLOCKS = "blocks";
     public static final String DESC_BLOCKS = " ---- Manage player block balance";
+    public static final String RTP = "rtp";
+    public static final String DESC_RTP = " ---- Random TP around the world, share your location and more";
 
     public static ArrayList<String> getAllCommandDesc(CommandSender sender){
         Field[] interfaceFields= AllCommandsConstants.class.getFields();

@@ -23,7 +23,7 @@ public class ACommandManager {
         CommandAPI.registerCommand(BlockBalanceCommands.class);
         CommandAPI.registerCommand(ClaimCommands.class);
         CommandAPI.registerCommand(AllianceCommands.class);
-
+        CommandAPI.registerCommand(RTPCommands.class);
     }
 
     public static Component getHelpHeader(String command){
@@ -33,13 +33,6 @@ public class ACommandManager {
                 ;
     }
 
-    /**
-     * Sends the HELP as a paginated list of strings in chat to a player
-     *
-     * @param sender The sender to send the list to
-     * @param list The list to paginate
-     * @param page The page number to display.
-     */
     public static void paginateArrayComponent(CommandSender sender, ArrayList<Component> list, int page, String title) {
         int totalPageCount = 1;
 

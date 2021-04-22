@@ -1,8 +1,8 @@
 package com.ismaiiil.alliance.commands;
 
 import com.ismaiiil.alliance.AlliancePlugin;
-import com.ismaiiil.alliance.scoreboard.AllianceScoreboardManager;
-import com.ismaiiil.alliance.scoreboard.EnumScore;
+import com.ismaiiil.alliance.features.scoreboard.AllianceScoreboardManager;
+import com.ismaiiil.alliance.features.scoreboard.EnumScore;
 import dev.jorel.commandapi.annotations.Command;
 import dev.jorel.commandapi.annotations.Default;
 import dev.jorel.commandapi.annotations.Permission;
@@ -21,10 +21,10 @@ public class BlockBalanceCommands {
     public static final String PERM_BASIC = "alliance.blocks.basic";
     public static final String PERM_INFO = "alliance.blocks.info";
     public static final String PERM_ADD = "alliance.blocks.add";
-    @Default
+
     @Subcommand("help")
-    public static void blocks(CommandSender sender){
-        sender.sendMessage(ACommandManager.getHelpHeader("blocks"));
+    public static void help(CommandSender sender){
+        sender.sendMessage(ACommandManager.getHelpHeader(BLOCKS));
         sendHelpIfPermission(sender,PERM_BASIC, "/blocks help - Show this help");
         sendHelpIfPermission(sender,PERM_INFO, "/blocks <player> - displays the amount of blocks <player> has");
         sendHelpIfPermission(sender,PERM_ADD, "/blocks add <player> <amount> - add <amount> blocks to <player>'s balance");

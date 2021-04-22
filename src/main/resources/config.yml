@@ -1,8 +1,11 @@
 performance:
   min-threads: 1
   max-threads: 10
+  max-rtp-lookup: 1000
 defaults:
-  radius: 5
+  region-radius: 5
+  highlight-radius: 20
+  rtp-radius: 3
   starting-balance: 350
 objectives-data:
   balance:

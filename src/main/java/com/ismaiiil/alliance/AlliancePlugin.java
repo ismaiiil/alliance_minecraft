@@ -1,17 +1,18 @@
 package com.ismaiiil.alliance;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.ismaiiil.alliance.commands.ACommandManager;
-import com.ismaiiil.alliance.land.manager.AllianceRegionManager;
-import com.ismaiiil.alliance.json.PlayerJsonData;
-import com.ismaiiil.alliance.json.PlayerData;
-import com.ismaiiil.alliance.json.ConfigLoader;
-import com.ismaiiil.alliance.land.mining.EnumBlockReward;
-import com.ismaiiil.alliance.scoreboard.AllianceScoreboardManager;
-import com.ismaiiil.alliance.scoreboard.EnumObjective;
-import com.ismaiiil.alliance.scoreboard.EnumScore;
-import com.ismaiiil.alliance.worldguardinstance.RegionsInstance;
-import com.ismaiiil.alliance.worldguardinstance.WorldHelperFactory;
+import com.ismaiiil.alliance.features.claims.manager.AllianceRegionManager;
+import com.ismaiiil.alliance.features.rtp.RTPManager;
+import com.ismaiiil.alliance.features.json.PlayerJsonData;
+import com.ismaiiil.alliance.features.json.PlayerData;
+import com.ismaiiil.alliance.features.json.ConfigLoader;
+import com.ismaiiil.alliance.features.claims.mining.EnumBlockReward;
+import com.ismaiiil.alliance.features.scoreboard.AllianceScoreboardManager;
+import com.ismaiiil.alliance.features.scoreboard.EnumObjective;
+import com.ismaiiil.alliance.features.scoreboard.EnumScore;
+import com.ismaiiil.alliance.features.threadpool.ThreadManager;
+import com.ismaiiil.alliance.utils.worldguardinstance.RegionsInstance;
+import com.ismaiiil.alliance.utils.worldguardinstance.WorldHelperFactory;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.flags.Flags;
@@ -19,7 +20,6 @@ import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.*;
 import lombok.var;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -35,7 +35,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.util.*;
-import java.util.concurrent.*;
 
 import static com.sk89q.worldguard.protection.flags.StateFlag.State.DENY;
 import static com.sk89q.worldguard.protection.regions.ProtectedRegion.GLOBAL_REGION;
@@ -49,8 +48,13 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
     public final String placeMetaData = "PLAYER_PLACED";
 
-    public int radius;
-    int defaultBalance;
+    public int defaultRegionRadius;
+    public int highlightRegionRadius;
+    public int rtpRadius;
+    public int defaultBalance;
+    public int maxLookupCount;
+    int minPoolSize;
+    int maxPoolSize;
 
     private static AlliancePlugin inst;
 
@@ -59,8 +63,6 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
     EnumObjective[] enumObjectives;
     public final long SERVER_TICK = 20L;
-
-    public static ExecutorService pool;
 
     public AlliancePlugin(){
         inst = this;
@@ -84,12 +86,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
         //config files init
         saveDefaultConfig();
-        radius = getConfig().getInt("defaults.radius");
-        defaultBalance = getConfig().getInt("defaults.starting-balance");
-
-        int minPoolSize = getConfig().getInt("performance.min-threads");
-        int maxPoolSize = getConfig().getInt("performance.max-threads");
-
+        loadConfigsInMemory();
 
         for (EnumObjective _eo: enumObjectives) {
 
@@ -118,16 +115,14 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
         AllianceRegionManager.init();
         AllianceScoreboardManager.init();
+        ThreadManager.init(minPoolSize,maxPoolSize);
+        RTPManager.init();
 
         //setting default worldGuard stuff
         setGlobalFlags();
 
 //        pool = new ThreadPoolExecutor(minPoolSize, maxPoolSize, 1000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(maxPoolSize));
-        pool = new ThreadPoolExecutor(minPoolSize, maxPoolSize, 1000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(maxPoolSize),
-                new ThreadFactoryBuilder()
-                        .setNameFormat("ALLIANCE POOL-%d")
-                        .setDaemon(false)
-                        .build());
+
 
     }
 
@@ -137,6 +132,9 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
         if (!playerJsonData.players.containsKey(player.getName())){
             playerJsonData.createPlayerData(player.getName(), defaultBalance);
+        }
+        if (!player.hasPlayedBefore()){
+            RTPManager.rtp(player);
         }
 
         AllianceScoreboardManager.setPlayerScoreboard(player);
@@ -327,6 +325,16 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
 
     public static PlayerData getPlayerData(Player player){
         return playerJsonData.getPlayerData(player.getName());
+    }
+
+    public void loadConfigsInMemory() {
+        defaultRegionRadius = getConfig().getInt("defaults.region-radius");
+        highlightRegionRadius = getConfig().getInt("defaults.highlight-radius");
+        defaultBalance = getConfig().getInt("defaults.starting-balance");
+        rtpRadius = getConfig().getInt("defaults.rtp-radius");
+        minPoolSize = getConfig().getInt("performance.min-threads");
+        maxPoolSize = getConfig().getInt("performance.max-threads");
+        maxPoolSize = getConfig().getInt("performance.max-rtp-lookup");
     }
 
     @Override
