@@ -24,6 +24,7 @@ public class ACommandManager {
         CommandAPI.registerCommand(ClaimCommands.class);
         CommandAPI.registerCommand(AllianceCommands.class);
         CommandAPI.registerCommand(RTPCommands.class);
+        CommandAPI.registerCommand(ConfigCommands.class);
     }
 
     public static Component getHelpHeader(String command){

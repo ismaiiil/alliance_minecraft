@@ -27,7 +27,9 @@ public class RTPManager {
     private static RegionManager regionManager;
 
     private static ConcurrentHashMap<UUID, TPLink> playerToTpLinks = new ConcurrentHashMap<>();
-
+    private static ConcurrentHashMap<UUID, Long> playerToTimeRTP = new ConcurrentHashMap<>();
+    //TODO
+    //investigate thread safety
     public static void init(){
         alliancePlugin = AlliancePlugin.getInstance();
         regionManager = alliancePlugin.defaultRegionManager;
@@ -46,15 +48,34 @@ public class RTPManager {
         Location spawn = p.getWorld().getSpawnLocation();
         Location destination = generateRandomSpawn(radius, spawn);
         final CompletableFuture<TPLink> promise = new CompletableFuture<>();
+
+        if (playerToTimeRTP.containsKey(p.getUniqueId())){
+            var timeCreated = playerToTimeRTP.get(p.getUniqueId());
+            if ((System.currentTimeMillis() - timeCreated) < alliancePlugin.rtpCoolDown){
+                var timeLeft = (alliancePlugin.rtpCoolDown - (System.currentTimeMillis() - timeCreated));
+                long minutes = (timeLeft / 1000) / 60;
+                long seconds = (timeLeft / 1000) % 60;
+                p.sendMessage(String.format("You can't use /rtp yet, on cooldown, %s minutes and %s seconds left", minutes,seconds));
+                return promise;
+            }else{
+                playerToTimeRTP.remove(p.getUniqueId());
+            }
+
+        }
+
         var future = CompletableFuture.supplyAsync(() -> lookupRandomLocation(destination, p, radius, spawn, 1), ThreadManager.pool)
         .thenApply(location -> {
             ThreadManager.runMainThread(() -> {
                 teleportPlayer(location,p);
                 p.setBedSpawnLocation(location, true);
+
                 var tpLink = new TPLink(p, location);
                 playerToTpLinks.remove(p.getUniqueId());
-                p.sendMessage(tpLink.buildTPLinkShareMessage());
                 playerToTpLinks.put(p.getUniqueId(), tpLink);
+
+                playerToTimeRTP.put(p.getUniqueId(), System.currentTimeMillis());
+
+                p.sendMessage(tpLink.buildTPLinkShareMessage());
                 promise.complete(tpLink);
                 return null;
             });
@@ -171,8 +192,6 @@ public class RTPManager {
             }
         }
     }
-
-
 
 
 }

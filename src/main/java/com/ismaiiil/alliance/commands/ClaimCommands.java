@@ -85,6 +85,8 @@ public class ClaimCommands {
 
             AlliancePlugin.getInstance().defaultRegionManager.removeRegion(regionId);
 
+
+
             player.sendMessage(Component.text("Deleted Region " + regionId)
                     .color(NamedTextColor.GREEN)
             );

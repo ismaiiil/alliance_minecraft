@@ -1,5 +1,6 @@
 package com.ismaiiil.alliance.features.rtp;
 
+import com.ismaiiil.alliance.AlliancePlugin;
 import com.ismaiiil.alliance.commands.AllCommandsConstants;
 import lombok.var;
 import net.kyori.adventure.text.Component;
@@ -32,8 +33,7 @@ public class TPLink {
     }
 
     public boolean hasExpired(){
-        long tpLinkExpireTime = 30000;
-        return (System.currentTimeMillis() - timeCreated) > tpLinkExpireTime;
+        return (System.currentTimeMillis() - timeCreated) > AlliancePlugin.getInstance().rtpExpireTime;
     }
 
     public Component buildTPLinkShareMessage(){

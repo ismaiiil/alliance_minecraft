@@ -6,9 +6,13 @@ import java.io.Serializable;
 
 @ToString
 public class PlayerData implements Serializable {
+
+    public String playerName = "";
     public int regionsCreated = 0;
     public double balance = 0;
     public double usedBalance = 0;
 
-    public PlayerData() {}
+    public PlayerData(String playerName) {
+        this.playerName = playerName;
+    }
 }

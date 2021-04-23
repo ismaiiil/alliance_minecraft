@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class BorderCache extends PlayerCache<HashMap<String, ArrayList <Block>> , CompletableFuture<Void>> {
@@ -34,7 +35,7 @@ public class BorderCache extends PlayerCache<HashMap<String, ArrayList <Block>> 
 
     //resets only the blocks specified in the blocksToReset variable (useful when expanding region, we dnt want to reset
     //already highlighted blocks
-    public CompletableFuture<String> reset(Player player, ArrayList<BlockVector3> blocksToReset) {
+    public CompletableFuture<Void> reset(Player player, ArrayList<BlockVector3> blocksToReset) {
         AlliancePlugin.printThread("start of reset");
         var uuid = player.getUniqueId();
         if (cache.containsKey(uuid)) {

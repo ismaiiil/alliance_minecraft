@@ -50,7 +50,7 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
 
         @Override
         public void updateLinkedValue(Player player) {
-            PlayerData data = AlliancePlugin.playerJsonData.getPlayerData(player.getName());
+            PlayerData data = AlliancePlugin.playerJsonData.getPlayerData(player);
             String tempString = "";
 
             Integer tempBalanceChange;
@@ -79,7 +79,7 @@ public enum EnumScore { //Note: order of enum affects the order of the scoreboar
             false) {
         @Override
         public void updateLinkedValue(Player player) {
-            PlayerData data = AlliancePlugin.playerJsonData.getPlayerData(player.getName());
+            PlayerData data = AlliancePlugin.playerJsonData.getPlayerData(player);
             changeScoreValue(this,player,String.valueOf(data.usedBalance));
         }
     },

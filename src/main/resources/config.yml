@@ -2,6 +2,8 @@ performance:
   min-threads: 1
   max-threads: 10
   max-rtp-lookup: 1000
+  rtp-expire-ms: 300000
+  rtp-cooldown: 60000
 defaults:
   region-radius: 5
   highlight-radius: 20

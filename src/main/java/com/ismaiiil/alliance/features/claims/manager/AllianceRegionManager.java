@@ -1,7 +1,6 @@
 package com.ismaiiil.alliance.features.claims.manager;
 
 import com.ismaiiil.alliance.AlliancePlugin;
-import com.ismaiiil.alliance.features.json.ConfigLoader;
 import com.ismaiiil.alliance.features.json.PlayerData;
 import com.ismaiiil.alliance.features.json.PlayerJsonData;
 import com.ismaiiil.alliance.features.claims.util.CallbackForEachBlock;
@@ -40,7 +39,6 @@ import java.util.*;
 
 import static com.ismaiiil.alliance.features.claims.corner.CornerTypes.*;
 import static com.sk89q.worldguard.protection.flags.StateFlag.State.DENY;
-import static org.bukkit.Bukkit.getServer;
 
 public class AllianceRegionManager {
     private static AlliancePlugin alliancePlugin;
@@ -65,7 +63,7 @@ public class AllianceRegionManager {
 
     public static void createDefaultRegion(Player player, Block targetBlock) {
         var localPlayer = worldGuardPlugin.wrapPlayer(player);
-        var playerData = playerJsonData.players.get(player.getName());
+        var playerData = playerJsonData.getPlayerData(player);
         //check user balance before creating region
         int claimCost = ((defaultRadius *2) + 1) * ((defaultRadius *2) + 1);
         if(playerData.balance - claimCost < 0){
@@ -79,8 +77,6 @@ public class AllianceRegionManager {
         playerData.balance -= claimCost;
         playerData.usedBalance += claimCost;
 
-        getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(AlliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
-
         if (getRegionsInRegion(defaultRegion).size() == 0){
             regionManager.addRegion(defaultRegion);
             AllianceScoreboardManager.updateAllPlayerScores(player, EnumObjective.BALANCE);
@@ -93,7 +89,7 @@ public class AllianceRegionManager {
     public static void expandPlayerRegion(Player player, Block targetBlock) {
         var cachedCorner = selectorCache.get(player);
         var _region = (ProtectedCuboidRegion) regionManager.getRegion(cachedCorner.regionId);
-        var playerData = playerJsonData.players.get(player.getName());
+        var playerData = playerJsonData.getPlayerData(player);
 
         if (cachedCorner.oldCorner.equals(BlockVector2.at(targetBlock.getX(),targetBlock.getZ()))){
             player.sendMessage( "You can't select the same point to expand");
@@ -137,8 +133,6 @@ public class AllianceRegionManager {
                 regionManager.addRegion(newRegion);
                 playerData.balance = newBalance;
                 AllianceScoreboardManager.updatePlayerScore(player,EnumScore.BALANCE_CURRENT);
-                getServer().getScheduler().runTaskAsynchronously(alliancePlugin, () -> ConfigLoader.saveConfig(AlliancePlugin.playerJsonData,alliancePlugin.playerJsonFile));
-
                 AlliancePlugin.printThread("expandPlayerRegion");
 
                 var _oldBlocksHighlighted = borderCache.get(player).get(_region.getId());
@@ -256,6 +250,7 @@ public class AllianceRegionManager {
                 .append(Component.text("Yes").clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND,"/claims delete "+region.getId()))
                         .color(NamedTextColor.RED)
                         .decoration(TextDecoration.BOLD,true)
+                        .hoverEvent(Component.text("IKnowWhatAmDoing!"))
                 )
                 ;
         player.sendMessage(textComponent);
@@ -268,6 +263,7 @@ public class AllianceRegionManager {
                         .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND,String.format("/claims create %s %s %s", block.getX(), block.getY(),block.getZ() )))
                         .color(NamedTextColor.GREEN)
                         .decoration(TextDecoration.BOLD,true)
+                        .hoverEvent(Component.text("GIMME Claim"))
                 )
                 ;
         player.sendMessage(textComponent);

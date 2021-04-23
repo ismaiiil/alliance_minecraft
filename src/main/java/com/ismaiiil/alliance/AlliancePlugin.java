@@ -53,13 +53,15 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public int rtpRadius;
     public int defaultBalance;
     public int maxLookupCount;
+    public long rtpExpireTime;
+    public long rtpCoolDown;
     int minPoolSize;
     int maxPoolSize;
 
     private static AlliancePlugin inst;
 
     public static PlayerJsonData playerJsonData;
-    public File playerJsonFile;
+    public static File playerJsonFile;
 
     EnumObjective[] enumObjectives;
     public final long SERVER_TICK = 20L;
@@ -130,9 +132,8 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        if (!playerJsonData.players.containsKey(player.getName())){
-            playerJsonData.createPlayerData(player.getName(), defaultBalance);
-        }
+        getPlayerData(player);
+
         if (!player.hasPlayedBefore()){
             RTPManager.rtp(player);
         }
@@ -210,11 +211,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         var action = event.getAction();
         var item = event.getItem();
 
-
-        //check if player has a balance in balance.json else create a new entry for him
-        if (!playerJsonData.players.containsKey(player.getName())){
-             playerJsonData.createPlayerData(player.getName(), defaultBalance);
-        }
+        getPlayerData(player);
 
         if ( action.equals( Action.RIGHT_CLICK_BLOCK ) ) {
             if ( item != null && item.getType() == EnumObjective.BALANCE.getScoreboardItem() ) {
@@ -276,7 +273,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         )
         {
             var player = event.getPlayer();
-            var playerData = playerJsonData.getPlayerData(player.getName());
+            var playerData = playerJsonData.getPlayerData(player);
 
             var material = event.getBlock().getBlockData().getMaterial();
             var value = EnumBlockReward.getMatValue(material);
@@ -324,7 +321,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
     }
 
     public static PlayerData getPlayerData(Player player){
-        return playerJsonData.getPlayerData(player.getName());
+        return playerJsonData.getPlayerData(player);
     }
 
     public void loadConfigsInMemory() {
@@ -335,14 +332,14 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         minPoolSize = getConfig().getInt("performance.min-threads");
         maxPoolSize = getConfig().getInt("performance.max-threads");
         maxPoolSize = getConfig().getInt("performance.max-rtp-lookup");
+        rtpExpireTime = getConfig().getLong("performance.rtp-expire-ms");
+        rtpCoolDown = getConfig().getLong("performance.rtp-cooldown");
     }
 
     @Override
     public void onDisable() {
         // Plugin shutdown logic
-        ConfigLoader.saveConfig(playerJsonData,playerJsonFile);
-
-
+        playerJsonData.saveDataToFile();
     }
 
 

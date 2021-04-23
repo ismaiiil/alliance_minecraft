@@ -27,7 +27,7 @@ public class ConfigLoader {
                 ConfigLoader.saveConfig(config, file);
                 return config;
             }
-        } catch (IOException | IllegalAccessException | InstantiationException e) {
+        } catch (IOException | IllegalAccessException | InstantiationException e ) {
             e.printStackTrace();
         }
 

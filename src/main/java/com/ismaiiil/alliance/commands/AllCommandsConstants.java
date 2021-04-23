@@ -22,6 +22,8 @@ public class AllCommandsConstants {
     public static final String DESC_BLOCKS = " ---- Manage player block balance";
     public static final String RTP = "rtp";
     public static final String DESC_RTP = " ---- Random TP around the world, share your location and more";
+    public static final String CONFIG = "config";
+    public static final String DESC_CONFIG = " ---- Manage and reload config files";
 
     public static ArrayList<String> getAllCommandDesc(CommandSender sender){
         Field[] interfaceFields= AllCommandsConstants.class.getFields();
