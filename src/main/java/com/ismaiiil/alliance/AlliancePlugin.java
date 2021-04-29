@@ -19,6 +19,7 @@ import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.*;
 import lombok.var;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -135,7 +136,12 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         getPlayerData(player);
 
         if (!player.hasPlayedBefore()){
-            RTPManager.rtp(player);
+            RTPManager.rtp(player)
+            .exceptionally(throwable -> {
+                player.kick(Component.text("Not enough space on the map to rtp you, please try again"));
+                RTPManager.playerToTimeRTP.remove(player.getUniqueId());
+                return null;
+            });
         }
 
         AllianceScoreboardManager.setPlayerScoreboard(player);
@@ -183,7 +189,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
             AllianceScoreboardManager.resetPlayerScoreboard(p);
 
         }
-    }
+     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
@@ -331,7 +337,7 @@ public final class AlliancePlugin extends JavaPlugin implements Listener {
         rtpRadius = getConfig().getInt("defaults.rtp-radius");
         minPoolSize = getConfig().getInt("performance.min-threads");
         maxPoolSize = getConfig().getInt("performance.max-threads");
-        maxPoolSize = getConfig().getInt("performance.max-rtp-lookup");
+        maxLookupCount = getConfig().getInt("performance.max-rtp-lookup");
         rtpExpireTime = getConfig().getLong("performance.rtp-expire-ms");
         rtpCoolDown = getConfig().getLong("performance.rtp-cooldown");
     }

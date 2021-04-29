@@ -8,6 +8,7 @@ import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import lombok.var;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -20,14 +21,13 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class RTPManager {
     private static AlliancePlugin alliancePlugin;
     private static RegionManager regionManager;
 
     private static ConcurrentHashMap<UUID, TPLink> playerToTpLinks = new ConcurrentHashMap<>();
-    private static ConcurrentHashMap<UUID, Long> playerToTimeRTP = new ConcurrentHashMap<>();
+    public static ConcurrentHashMap<UUID, Long> playerToTimeRTP = new ConcurrentHashMap<>();
     //TODO
     //investigate thread safety
     public static void init(){
@@ -63,7 +63,11 @@ public class RTPManager {
 
         }
 
-        var future = CompletableFuture.supplyAsync(() -> lookupRandomLocation(destination, p, radius, spawn, 1), ThreadManager.pool)
+        var future = CompletableFuture.supplyAsync(() -> {
+            p.sendMessage("Please wait, lookin' for safe location!");
+            playerToTimeRTP.put(p.getUniqueId(), System.currentTimeMillis());
+            return loopWhileInvalidLocation(destination, p, radius, spawn);
+        }, ThreadManager.pool)
         .thenApply(location -> {
             ThreadManager.runMainThread(() -> {
                 teleportPlayer(location,p);
@@ -72,8 +76,6 @@ public class RTPManager {
                 var tpLink = new TPLink(p, location);
                 playerToTpLinks.remove(p.getUniqueId());
                 playerToTpLinks.put(p.getUniqueId(), tpLink);
-
-                playerToTimeRTP.put(p.getUniqueId(), System.currentTimeMillis());
 
                 p.sendMessage(tpLink.buildTPLinkShareMessage());
                 promise.complete(tpLink);
@@ -84,12 +86,16 @@ public class RTPManager {
 
         future.exceptionally(throwable -> {
             throwable.printStackTrace();
-            promise.completeExceptionally(throwable);
-            if (throwable.getCause() instanceof MaxRecursiveCountExceededException){
+
+            if (throwable.getCause() instanceof MaxLookupCountExceeded){
                 ThreadManager.runMainThread(() -> {
-                    p.kick(Component.text("Not enough space on the map to rtp you"));
+                    promise.completeExceptionally(throwable);
+                    p.sendMessage(Component.text("Not enough space on the map to rtp you"));
                     return null;
                 });
+            }else{
+                p.sendMessage(Component.text("An unknown error has occurred, please report to Server admin")
+                                        .color(NamedTextColor.RED));
             }
             return null;
         });
@@ -134,17 +140,17 @@ public class RTPManager {
         int y = world.getHighestBlockYAt(x,z);
 
         Location destination = new Location(world, x, y+1, z);
-
         return destination;
     }
 
     public static void teleportPlayer(Location destination, Player player){
-        ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
-        String command = "tp " + player.getName() + " " + destination.getX()  + " " + destination.getY() + " " + destination.getZ();
-        Bukkit.dispatchCommand(console, command);
+        player.teleport(destination);
+        Bukkit.getServer().getConsoleSender().sendMessage(String.format("Player: %s has been rtped to %s, %s, %s",
+                                                                        player.getName(), destination.getBlockX(), destination.getBlockY(), destination.getBlockZ()));
+
     }
 
-    public static Location lookupRandomLocation(Location destination, Player player, int radius, Location spawn, int recursiveCount){
+    public static Location checkValidLocation(Location destination, Player player){
         World world;
         if ((world = player.getLocation().getWorld()) == null){
             return null;
@@ -174,15 +180,28 @@ public class RTPManager {
                 block1.getType() == Material.LAVA || block1.getType() == Material.WATER ||
                 moveNext
         ){
-            Location location = generateRandomSpawn(radius, spawn);
-
-            if (recursiveCount+1 > alliancePlugin.maxLookupCount){
-                throw new MaxRecursiveCountExceededException();
-            }
-
-            return lookupRandomLocation(location, player, radius, spawn, recursiveCount + 1);
+            return null;
         }
         return destination;
+    }
+
+    public static Location loopWhileInvalidLocation(Location destination, Player player, int radius, Location spawn){
+        int lookupCount = 1;
+        Location finalDestination;
+        Location newLocation  = destination;
+
+        do {
+            finalDestination = checkValidLocation(newLocation, player);
+            lookupCount += 1;
+            newLocation = generateRandomSpawn(radius, spawn);
+
+            if (lookupCount+1 > alliancePlugin.maxLookupCount){
+                throw new MaxLookupCountExceeded();
+            }
+
+        } while (finalDestination == null);
+
+        return finalDestination;
     }
 
     public static void deleteExpiredTpLinks(){
